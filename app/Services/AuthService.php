@@ -35,7 +35,9 @@ class AuthService
         }
 
         // Conta inativa → false (sem revelar)
-        if (empty($user['active'])) {
+        // PostgreSQL retorna BOOLEAN como string 't'/'f'; tratar ambos
+        $active = $user['active'];
+        if ($active === false || $active === 'f' || $active === 'false' || $active === 0 || $active === '0') {
             return false;
         }
 
