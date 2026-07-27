@@ -68,10 +68,73 @@ O grafo é implementado de forma relacional, não com um banco de grafo dedicado
 - Extensões de grafo dedicadas (ex: Apache AGE) só devem ser consideradas se
   CTEs recursivas se mostrarem insuficientes — não instalar por padrão
 
+## Direções futuras conhecidas
+
+Decisões de design adiadas deliberadamente, registradas para evitar
+rediscussão:
+
+- **Multi-tenancy / múltiplos projetos de pesquisa**: considerado e adiado
+  — decisão documentada na Spec 2 (`.speckit/spec-2-auth.md`). O escopo
+  atual é um único projeto de pesquisa.
+- **Recuperação de senha por e-mail**: fora de escopo até haver configuração
+  de envio de e-mail (SMTP) no projeto.
+
+## Convenção de atributos bibliográficos
+
+Para entidades do tipo `document`, o campo `attributes` (JSONB) deve seguir um
+vocabulário controlado de chaves. Esta é uma **convenção documental**, não uma
+constraint de banco — o objetivo é garantir consistência nos dados desde o
+primeiro documento cadastrado, viabilizando uma futura feature de geração de
+citação bibliográfica (ABNT e normas customizáveis, possivelmente via
+abordagem CSL) sem retrabalho de padronização retroativa.
+
+### Chaves padrão
+
+| Chave                        | Tipo   | Descrição                                          |
+|------------------------------|--------|----------------------------------------------------|
+| `autor_responsavel`          | string | Autor ou entidade responsável pelo documento       |
+| `titulo`                     | string | Título formal do documento                         |
+| `tipo_documento`             | string | Natureza do documento (ex: processo_judicial, oficio, correspondencia, foto, periodico) |
+| `instituicao_custodiadora`   | string | Instituição que detém a guarda do original          |
+| `localizacao_arquivistica`   | object | Referência de localização física, com subcampos:   |
+|                              |        | `fundo` — nome do fundo arquivístico               |
+|                              |        | `caixa` — identificador da caixa                   |
+|                              |        | `maco` — identificador do maço                     |
+| `data`                       | string | Data associada ao documento (YYYY-MM-DD ou YYYY-MM ou YYYY) |
+| `data_acesso`                | string | Data em que o documento foi consultado/acessado    |
+
+### Exemplo
+
+```json
+{
+  "autor_responsavel": "Tribunal de Justiça do Estado de São Paulo",
+  "titulo": "Processo Judicial n. 487/1929",
+  "tipo_documento": "processo_judicial",
+  "instituicao_custodiadora": "Arquivo Público do Estado de São Paulo",
+  "localizacao_arquivistica": {
+    "fundo": "Tribunal de Justiça",
+    "caixa": "C-1929-03",
+    "maco": "M-487"
+  },
+  "data": "1929-07-15",
+  "data_acesso": "2025-11-10"
+}
+```
+
+### Regras de uso
+
+- Todas as chaves são opcionais — um documento pode ter apenas os campos
+  conhecidos no momento do cadastro
+- Chaves não previstas nesta lista **não devem ser inventadas sem antes
+  atualizar esta convenção** — o vocabulário é fechado por design para
+  evitar dispersão semântica
+- Novas chaves devem ser propostas como alteração pontual nesta seção do
+  AGENTS.md
+
 ## Ambiente de desenvolvimento
 
 - **Servidor**: XAMPP (`C:\xampp\htdocs\cerebro`)
-- **URL local**: http://localhost/cerebro/public
+- **URL local**: <http://localhost/cerebro/public>
 - **Comando alternativo**: `php spark serve` (servidor embutido do CodeIgniter)
 - **DeepSeek API**: configurada via variável de ambiente `DEEPSEEK_API_KEY`
   (nunca hardcoded em nenhum arquivo)
