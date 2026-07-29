@@ -38,11 +38,15 @@ $routes->group('relacoes', ['filter' => 'auth'], function ($routes) {
 // ─── Grafo dedicado ───────────────────────────────────────────────────
 $routes->get('grafo', 'GraphController::index', ['filter' => 'auth']);
 
-// ─── Documentos — listagem e extração via IA ───────────────────────────
-$routes->get('documentos', 'EntityController::documents', ['filter' => 'auth']);
+// ─── Documentos & Upload em Lote ──────────────────────────────────────
+$routes->get('documentos',      'EntityController::documents', ['filter' => 'auth']);
+$routes->get('documentos/lote', 'BatchIngestController::index', ['filter' => 'auth']);
 
 $routes->group('documentos', ['filter' => 'auth'], function ($routes) {
     $routes->post('(:num)/extrair',       'ExtractionController::extract/$1');
     $routes->get('(:num)/revisar',        'ExtractionController::review/$1');
     $routes->post('(:num)/aprovar-todas', 'ExtractionController::approveAll/$1');
 });
+
+// API de Upload em Lote (AJAX)
+$routes->post('api/documentos/upload-item', 'BatchIngestController::uploadItem', ['filter' => 'auth']);

@@ -99,6 +99,13 @@ $pendingCount = 0; // TODO: injetar via controller
                 Documentos
             </a>
 
+            <a href="<?= base_url('documentos/lote') ?>"
+               class="cbr-nav-link"
+               id="nav-batch-documents">
+                <i class="bi bi-box-seam" aria-hidden="true"></i>
+                Upload em Lote (IA)
+            </a>
+
             <div class="cbr-nav-section">Grafo</div>
 
             <a href="<?= base_url('grafo') ?>"
