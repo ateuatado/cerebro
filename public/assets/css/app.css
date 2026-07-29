@@ -1,0 +1,223 @@
+/* Cerebro — app.css — Estilos globais e design system */
+/* Assets locais, sem CDN, sem inline — AGENTS.md */
+
+/* ─── Inter typeface (local) ───────────────────────────────────────── */
+@font-face {
+    font-family: 'Inter';
+    src: url('../fonts/inter/inter-variable.woff2') format('woff2');
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* ─── Design tokens — Dark mode (padrão) ───────────────────────────── */
+:root {
+    --cbr-bg:           #0f1117;
+    --cbr-surface:      #1a1d2e;
+    --cbr-surface-2:    #242842;
+    --cbr-border:       #2e3250;
+    --cbr-text:         #e2e8f0;
+    --cbr-text-muted:   #7a8099;
+    --cbr-text-subtle:  #4a5175;
+
+    --cbr-primary:      #7c6af7;
+    --cbr-primary-hover:#9585ff;
+    --cbr-primary-dim:  rgba(124, 106, 247, 0.15);
+
+    --cbr-confirmed:    #22c55e;
+    --cbr-confirmed-bg: rgba(34, 197, 94, 0.12);
+    --cbr-hypothesis:   #f59e0b;
+    --cbr-hypothesis-bg:rgba(245, 158, 11, 0.12);
+    --cbr-danger:       #ef4444;
+    --cbr-danger-bg:    rgba(239, 68, 68, 0.12);
+
+    /* Tipo de entidade */
+    --cbr-person:       #60a5fa;
+    --cbr-person-bg:    rgba(96, 165, 250, 0.12);
+    --cbr-location:     #34d399;
+    --cbr-location-bg:  rgba(52, 211, 153, 0.12);
+    --cbr-event:        #f472b6;
+    --cbr-event-bg:     rgba(244, 114, 182, 0.12);
+    --cbr-document:     #fb923c;
+    --cbr-document-bg:  rgba(251, 146, 60, 0.12);
+
+    --cbr-radius:       0.625rem;
+    --cbr-radius-sm:    0.375rem;
+    --cbr-radius-lg:    1rem;
+    --cbr-shadow:       0 4px 24px rgba(0,0,0,0.4);
+    --cbr-shadow-sm:    0 2px 8px rgba(0,0,0,0.3);
+
+    --cbr-sidebar-w:    240px;
+    --cbr-topbar-h:     60px;
+    --cbr-bottomnav-h:  64px;
+
+    --cbr-transition:   0.18s ease;
+}
+
+/* ─── Light mode ────────────────────────────────────────────────────── */
+[data-theme="light"] {
+    --cbr-bg:           #f1f3f9;
+    --cbr-surface:      #ffffff;
+    --cbr-surface-2:    #eef0f8;
+    --cbr-border:       #d1d5e8;
+    --cbr-text:         #1a1d2e;
+    --cbr-text-muted:   #5a6080;
+    --cbr-text-subtle:  #9aa0be;
+
+    --cbr-primary:      #5b4ee0;
+    --cbr-primary-hover:#4a3fc7;
+    --cbr-primary-dim:  rgba(91, 78, 224, 0.1);
+
+    --cbr-confirmed:    #16a34a;
+    --cbr-confirmed-bg: rgba(22, 163, 74, 0.1);
+    --cbr-hypothesis:   #d97706;
+    --cbr-hypothesis-bg:rgba(217, 119, 6, 0.1);
+
+    --cbr-shadow:       0 4px 24px rgba(0,0,0,0.08);
+    --cbr-shadow-sm:    0 2px 8px rgba(0,0,0,0.06);
+}
+
+/* ─── Base ──────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+    font-size: 16px;
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background-color: var(--cbr-bg);
+    color: var(--cbr-text);
+    line-height: 1.6;
+    min-height: 100vh;
+    transition: background-color var(--cbr-transition), color var(--cbr-transition);
+    -webkit-font-smoothing: antialiased;
+}
+
+a {
+    color: var(--cbr-primary);
+    text-decoration: none;
+    transition: color var(--cbr-transition);
+}
+a:hover { color: var(--cbr-primary-hover); }
+
+/* ─── Scrollbar personalizado (webkit) ─────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--cbr-bg); }
+::-webkit-scrollbar-thumb { background: var(--cbr-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--cbr-text-subtle); }
+
+/* ─── Bootstrap overrides ───────────────────────────────────────────── */
+.btn-primary {
+    background-color: var(--cbr-primary);
+    border-color: var(--cbr-primary);
+    font-weight: 500;
+}
+.btn-primary:hover, .btn-primary:focus {
+    background-color: var(--cbr-primary-hover);
+    border-color: var(--cbr-primary-hover);
+}
+
+.form-control, .form-select {
+    background-color: var(--cbr-surface-2);
+    border-color: var(--cbr-border);
+    color: var(--cbr-text);
+    border-radius: var(--cbr-radius-sm);
+    transition: border-color var(--cbr-transition), box-shadow var(--cbr-transition);
+}
+.form-control:focus, .form-select:focus {
+    background-color: var(--cbr-surface-2);
+    border-color: var(--cbr-primary);
+    color: var(--cbr-text);
+    box-shadow: 0 0 0 3px var(--cbr-primary-dim);
+}
+.form-control::placeholder { color: var(--cbr-text-subtle); }
+.form-label { color: var(--cbr-text-muted); font-size: 0.8125rem; font-weight: 500; }
+
+/* ─── Badges de status ──────────────────────────────────────────────── */
+.badge-confirmed {
+    background-color: var(--cbr-confirmed-bg);
+    color: var(--cbr-confirmed);
+    border: 1px solid rgba(34,197,94,0.25);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    padding: 0.25rem 0.6rem;
+    border-radius: 2rem;
+    letter-spacing: 0.02em;
+}
+
+.badge-hypothesis {
+    background-color: var(--cbr-hypothesis-bg);
+    color: var(--cbr-hypothesis);
+    border: 1px solid rgba(245,158,11,0.25);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    padding: 0.25rem 0.6rem;
+    border-radius: 2rem;
+    letter-spacing: 0.02em;
+}
+
+/* ─── Badges de tipo de entidade ────────────────────────────────────── */
+.badge-type {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    padding: 0.25rem 0.6rem;
+    border-radius: 2rem;
+}
+.badge-person   { background: var(--cbr-person-bg);   color: var(--cbr-person);   }
+.badge-location { background: var(--cbr-location-bg); color: var(--cbr-location); }
+.badge-event    { background: var(--cbr-event-bg);    color: var(--cbr-event);    }
+.badge-document { background: var(--cbr-document-bg); color: var(--cbr-document); }
+
+/* ─── Card base ─────────────────────────────────────────────────────── */
+.cbr-card {
+    background: var(--cbr-surface);
+    border: 1px solid var(--cbr-border);
+    border-radius: var(--cbr-radius);
+    box-shadow: var(--cbr-shadow-sm);
+    transition: border-color var(--cbr-transition), box-shadow var(--cbr-transition);
+}
+.cbr-card:hover {
+    border-color: var(--cbr-primary);
+    box-shadow: var(--cbr-shadow);
+}
+
+/* ─── Utilitários ───────────────────────────────────────────────────── */
+.text-muted-cbr { color: var(--cbr-text-muted) !important; }
+.text-subtle    { color: var(--cbr-text-subtle) !important; }
+
+.cbr-divider {
+    border: none;
+    border-top: 1px solid var(--cbr-border);
+    margin: 1.25rem 0;
+}
+
+/* Botão de toggle de tema */
+#theme-toggle {
+    background: none;
+    border: 1px solid var(--cbr-border);
+    color: var(--cbr-text-muted);
+    border-radius: var(--cbr-radius-sm);
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: all var(--cbr-transition);
+}
+#theme-toggle:hover {
+    border-color: var(--cbr-primary);
+    color: var(--cbr-primary);
+}
+
+/* ─── Animações ─────────────────────────────────────────────────────── */
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in-up { animation: fadeInUp 0.3s ease forwards; }
+
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}

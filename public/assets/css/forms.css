@@ -1,0 +1,296 @@
+/* Cerebro — forms.css — Formulários mobile-first, stepper */
+/* Assets locais, sem CDN, sem inline — AGENTS.md */
+
+/* ─── Inputs grandes (mobile-friendly) ─────────────────────────────── */
+.cbr-form .form-control,
+.cbr-form .form-select {
+    height: 3rem;
+    font-size: 1rem;
+    border-radius: var(--cbr-radius-sm);
+}
+
+.cbr-form textarea.form-control {
+    height: auto;
+    min-height: 7rem;
+    resize: vertical;
+}
+
+.cbr-form .form-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--cbr-text-muted);
+    margin-bottom: 0.375rem;
+}
+
+.cbr-form .form-text {
+    font-size: 0.75rem;
+    color: var(--cbr-text-subtle);
+}
+
+/* ─── Stepper ───────────────────────────────────────────────────────── */
+.cbr-stepper {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-bottom: 2rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+}
+
+.cbr-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.375rem;
+    position: relative;
+    flex: 1;
+    min-width: 80px;
+}
+
+.cbr-step::before {
+    content: '';
+    position: absolute;
+    top: 16px;
+    left: calc(-50% + 16px);
+    right: calc(50% + 16px);
+    height: 2px;
+    background: var(--cbr-border);
+    transition: background var(--cbr-transition);
+}
+.cbr-step:first-child::before { display: none; }
+.cbr-step.completed::before { background: var(--cbr-primary); }
+
+.cbr-step-dot {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    border: 2px solid var(--cbr-border);
+    background: var(--cbr-surface);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--cbr-text-muted);
+    transition: all var(--cbr-transition);
+    z-index: 1;
+    position: relative;
+}
+
+.cbr-step.active .cbr-step-dot {
+    border-color: var(--cbr-primary);
+    background: var(--cbr-primary);
+    color: #fff;
+    box-shadow: 0 0 0 4px var(--cbr-primary-dim);
+}
+
+.cbr-step.completed .cbr-step-dot {
+    border-color: var(--cbr-confirmed);
+    background: var(--cbr-confirmed);
+    color: #fff;
+}
+
+.cbr-step-label {
+    font-size: 0.6875rem;
+    font-weight: 500;
+    color: var(--cbr-text-subtle);
+    text-align: center;
+    white-space: nowrap;
+}
+.cbr-step.active .cbr-step-label { color: var(--cbr-primary); font-weight: 600; }
+.cbr-step.completed .cbr-step-label { color: var(--cbr-confirmed); }
+
+/* ─── Step panels ───────────────────────────────────────────────────── */
+.cbr-step-panel { display: none; }
+.cbr-step-panel.active { display: block; animation: fadeInUp 0.25s ease; }
+
+/* ─── Seletor de tipo de entidade ───────────────────────────────────── */
+.cbr-type-selector {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+@media (max-width: 575.98px) {
+    .cbr-type-selector { grid-template-columns: repeat(2, 1fr); }
+}
+
+.cbr-type-option {
+    border: 2px solid var(--cbr-border);
+    border-radius: var(--cbr-radius);
+    padding: 1rem 0.75rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all var(--cbr-transition);
+    background: var(--cbr-surface);
+}
+.cbr-type-option:hover { border-color: var(--type-color); }
+.cbr-type-option.selected {
+    border-color: var(--type-color);
+    background: var(--type-bg);
+}
+
+.cbr-type-option input[type="radio"] { display: none; }
+
+.cbr-type-option .type-icon {
+    font-size: 1.75rem;
+    color: var(--type-color);
+    display: block;
+    margin-bottom: 0.5rem;
+}
+.cbr-type-option .type-label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--cbr-text);
+}
+.cbr-type-option .type-desc {
+    font-size: 0.6875rem;
+    color: var(--cbr-text-muted);
+    margin-top: 0.2rem;
+}
+
+.type-person   { --type-color: var(--cbr-person);   --type-bg: var(--cbr-person-bg);   }
+.type-location { --type-color: var(--cbr-location); --type-bg: var(--cbr-location-bg); }
+.type-event    { --type-color: var(--cbr-event);    --type-bg: var(--cbr-event-bg);    }
+.type-document { --type-color: var(--cbr-document); --type-bg: var(--cbr-document-bg); }
+
+/* ─── Campos dinâmicos por tipo ─────────────────────────────────────── */
+.cbr-dynamic-fields { display: none; }
+.cbr-dynamic-fields.active { display: block; animation: fadeInUp 0.2s ease; }
+
+/* ─── Slider de confiança ───────────────────────────────────────────── */
+.cbr-confidence-slider {
+    width: 100%;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(to right,
+        var(--cbr-primary) 0%,
+        var(--cbr-primary) var(--slider-pct, 75%),
+        var(--cbr-border) var(--slider-pct, 75%),
+        var(--cbr-border) 100%
+    );
+    outline: none;
+    cursor: pointer;
+}
+.cbr-confidence-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--cbr-primary);
+    cursor: pointer;
+    border: 3px solid var(--cbr-surface);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    transition: transform var(--cbr-transition);
+}
+.cbr-confidence-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+}
+
+.cbr-confidence-display {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--cbr-primary);
+}
+.cbr-confidence-display span { font-size: 0.875rem; font-weight: 500; color: var(--cbr-text-muted); }
+
+/* ─── Autocomplete de entidade ──────────────────────────────────────── */
+.cbr-autocomplete-wrap {
+    position: relative;
+}
+.cbr-autocomplete-results {
+    position: absolute;
+    top: 100%;
+    left: 0; right: 0;
+    background: var(--cbr-surface);
+    border: 1px solid var(--cbr-primary);
+    border-top: none;
+    border-radius: 0 0 var(--cbr-radius-sm) var(--cbr-radius-sm);
+    z-index: 50;
+    max-height: 240px;
+    overflow-y: auto;
+    display: none;
+}
+.cbr-autocomplete-results.open { display: block; }
+.cbr-autocomplete-item {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.625rem 0.875rem;
+    cursor: pointer;
+    transition: background var(--cbr-transition);
+    font-size: 0.875rem;
+}
+.cbr-autocomplete-item:hover { background: var(--cbr-surface-2); }
+.cbr-autocomplete-item .item-icon {
+    width: 28px; height: 28px;
+    border-radius: var(--cbr-radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.875rem;
+    flex-shrink: 0;
+}
+.cbr-autocomplete-item .item-name { font-weight: 500; color: var(--cbr-text); }
+.cbr-autocomplete-item .item-type { font-size: 0.6875rem; color: var(--cbr-text-muted); }
+
+/* ─── Formulário card ───────────────────────────────────────────────── */
+.cbr-form-card {
+    background: var(--cbr-surface);
+    border: 1px solid var(--cbr-border);
+    border-radius: var(--cbr-radius);
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.cbr-form-section-title {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--cbr-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.cbr-form-section-title i { color: var(--cbr-primary); font-size: 1rem; }
+
+/* ─── Ações de formulário ───────────────────────────────────────────── */
+.cbr-form-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    padding-top: 1rem;
+}
+
+@media (max-width: 575.98px) {
+    .cbr-form-card { padding: 1.125rem; }
+    .cbr-form .form-control,
+    .cbr-form .form-select { height: 3.25rem; font-size: 1.0625rem; }
+    .cbr-form-actions { flex-direction: column-reverse; }
+    .cbr-form-actions .btn { width: 100%; justify-content: center; }
+}
+
+/* ─── Resumo (step 3) ───────────────────────────────────────────────── */
+.cbr-review-item {
+    display: flex;
+    gap: 1rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--cbr-border);
+    align-items: flex-start;
+}
+.cbr-review-item:last-child { border-bottom: none; }
+.cbr-review-label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--cbr-text-muted);
+    min-width: 120px;
+    flex-shrink: 0;
+}
+.cbr-review-value {
+    font-size: 0.875rem;
+    color: var(--cbr-text);
+    word-break: break-word;
+}

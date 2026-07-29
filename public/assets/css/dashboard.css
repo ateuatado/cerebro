@@ -1,0 +1,249 @@
+/* Cerebro — dashboard.css — Cards de estatísticas e grafo */
+/* Assets locais, sem CDN, sem inline — AGENTS.md */
+
+/* ─── Grid de stats ─────────────────────────────────────────────────── */
+.cbr-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+@media (max-width: 991.98px) {
+    .cbr-stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 479.98px) {
+    .cbr-stats-grid { grid-template-columns: repeat(2, 1fr); gap: 0.625rem; }
+}
+
+/* ─── Stat card ─────────────────────────────────────────────────────── */
+.cbr-stat-card {
+    background: var(--cbr-surface);
+    border: 1px solid var(--cbr-border);
+    border-radius: var(--cbr-radius);
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    transition: all var(--cbr-transition);
+    position: relative;
+    overflow: hidden;
+}
+.cbr-stat-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--stat-color, var(--cbr-primary));
+    opacity: 0.6;
+    border-radius: 0 0 var(--cbr-radius) var(--cbr-radius);
+}
+.cbr-stat-card:hover { border-color: var(--stat-color, var(--cbr-primary)); box-shadow: var(--cbr-shadow); }
+
+.cbr-stat-icon {
+    width: 40px; height: 40px;
+    border-radius: var(--cbr-radius-sm);
+    background: var(--stat-bg, var(--cbr-primary-dim));
+    color: var(--stat-color, var(--cbr-primary));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.125rem;
+}
+
+.cbr-stat-value {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--cbr-text);
+    line-height: 1;
+    letter-spacing: -0.03em;
+}
+
+.cbr-stat-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--cbr-text-muted);
+    letter-spacing: 0.02em;
+}
+
+/* Variantes por tipo */
+.stat-person   { --stat-color: var(--cbr-person);   --stat-bg: var(--cbr-person-bg);   }
+.stat-location { --stat-color: var(--cbr-location); --stat-bg: var(--cbr-location-bg); }
+.stat-event    { --stat-color: var(--cbr-event);    --stat-bg: var(--cbr-event-bg);    }
+.stat-document { --stat-color: var(--cbr-document); --stat-bg: var(--cbr-document-bg); }
+.stat-relation { --stat-color: var(--cbr-primary);  --stat-bg: var(--cbr-primary-dim); }
+.stat-pending  { --stat-color: var(--cbr-hypothesis); --stat-bg: var(--cbr-hypothesis-bg); }
+
+/* ─── Dashboard grid 2 colunas ──────────────────────────────────────── */
+.cbr-dash-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+@media (max-width: 767.98px) {
+    .cbr-dash-grid { grid-template-columns: 1fr; }
+}
+
+/* ─── Container do grafo ────────────────────────────────────────────── */
+.cbr-graph-container {
+    background: var(--cbr-surface);
+    border: 1px solid var(--cbr-border);
+    border-radius: var(--cbr-radius);
+    overflow: hidden;
+    grid-column: 1 / -1;
+}
+
+.cbr-graph-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--cbr-border);
+}
+
+.cbr-graph-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--cbr-text);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.cbr-graph-title i { color: var(--cbr-primary); }
+
+.cbr-graph-controls {
+    display: flex;
+    gap: 0.375rem;
+    flex-wrap: wrap;
+}
+
+.cbr-graph-btn {
+    background: var(--cbr-surface-2);
+    border: 1px solid var(--cbr-border);
+    border-radius: var(--cbr-radius-sm);
+    color: var(--cbr-text-muted);
+    font-size: 0.75rem;
+    padding: 0.3rem 0.7rem;
+    cursor: pointer;
+    transition: all var(--cbr-transition);
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+.cbr-graph-btn:hover {
+    border-color: var(--cbr-primary);
+    color: var(--cbr-primary);
+}
+.cbr-graph-btn.active {
+    background: var(--cbr-primary-dim);
+    border-color: var(--cbr-primary);
+    color: var(--cbr-primary);
+}
+
+#cerebro-graph {
+    width: 100%;
+    height: 420px;
+    background: var(--cbr-bg);
+}
+
+@media (max-width: 575.98px) {
+    #cerebro-graph { height: 280px; }
+}
+
+/* Legenda do grafo */
+.cbr-graph-legend {
+    display: flex;
+    gap: 1rem;
+    padding: 0.75rem 1.25rem;
+    border-top: 1px solid var(--cbr-border);
+    flex-wrap: wrap;
+}
+.cbr-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.75rem;
+    color: var(--cbr-text-muted);
+}
+.cbr-legend-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+/* ─── Recent list ───────────────────────────────────────────────────── */
+.cbr-recent-card {
+    background: var(--cbr-surface);
+    border: 1px solid var(--cbr-border);
+    border-radius: var(--cbr-radius);
+    overflow: hidden;
+}
+.cbr-recent-header {
+    padding: 1rem 1.25rem 0.75rem;
+    border-bottom: 1px solid var(--cbr-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.cbr-recent-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--cbr-text);
+    margin: 0;
+}
+.cbr-recent-link {
+    font-size: 0.75rem;
+    color: var(--cbr-primary);
+}
+
+.cbr-recent-list { list-style: none; margin: 0; padding: 0; }
+.cbr-recent-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1.25rem;
+    border-bottom: 1px solid var(--cbr-border);
+    transition: background var(--cbr-transition);
+    text-decoration: none;
+    color: inherit;
+}
+.cbr-recent-item:last-child { border-bottom: none; }
+.cbr-recent-item:hover { background: var(--cbr-surface-2); }
+
+.cbr-recent-icon {
+    width: 36px; height: 36px;
+    border-radius: var(--cbr-radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+.cbr-recent-name {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--cbr-text);
+}
+.cbr-recent-meta {
+    font-size: 0.75rem;
+    color: var(--cbr-text-muted);
+    margin-top: 0.1rem;
+}
+.cbr-recent-badges {
+    margin-left: auto;
+    display: flex;
+    gap: 0.375rem;
+    flex-shrink: 0;
+}
+
+/* ─── Estado vazio ──────────────────────────────────────────────────── */
+.cbr-empty-state {
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    color: var(--cbr-text-muted);
+}
+.cbr-empty-state i {
+    font-size: 2.5rem;
+    color: var(--cbr-text-subtle);
+    display: block;
+    margin-bottom: 0.75rem;
+}
+.cbr-empty-state p { font-size: 0.875rem; margin: 0 0 1rem; }
