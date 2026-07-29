@@ -39,7 +39,7 @@
             </div>
         </div>
 
-        <h1 class="login-title">Bem-vinda, Eliane</h1>
+        <h1 class="login-title">Bem-vindo(a) ao Cerebro</h1>
         <p class="login-subtitle">Acesse o grafo de conhecimento histórico</p>
 
         <!-- Alertas -->
