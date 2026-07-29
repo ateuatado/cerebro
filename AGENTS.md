@@ -134,7 +134,7 @@ abordagem CSL) sem retrabalho de padronização retroativa.
 ## Ambiente de desenvolvimento
 
 - **Servidor**: XAMPP (`C:\xampp\htdocs\cerebro`)
-- **URL local**: <http://localhost/cerebro/public>
+- **URL local**: <https://cerebro.test>
 - **Comando alternativo**: `php spark serve` (servidor embutido do CodeIgniter)
 - **DeepSeek API**: configurada via variável de ambiente `DEEPSEEK_API_KEY`
   (nunca hardcoded em nenhum arquivo)
