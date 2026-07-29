@@ -11,9 +11,10 @@ use App\Models\LocationModel;
 use App\Models\EventModel;
 use App\Models\RelationshipModel;
 use App\Services\DeepSeekService;
+use App\Services\DocumentParserService;
 
 /**
- * IngestFolderCommand — Comando CLI para varrer uma pasta e processar milhares de documentos em lote com IA.
+ * IngestFolderCommand — Comando CLI para varrer uma pasta e processar documentos de múltiplos formatos (TXT, PDF, JPG, PNG, etc.) em lote.
  *
  * Uso: php spark ingest:folder "C:\caminho\para\pasta\com\documentos"
  */
@@ -21,10 +22,10 @@ class IngestFolderCommand extends BaseCommand
 {
     protected $group       = 'Cerebro';
     protected $name        = 'ingest:folder';
-    protected $description = 'Varre uma pasta de documentos históricos e faz a extração automática em lote por IA (DeepSeek).';
+    protected $description = 'Varre uma pasta de documentos históricos (TXT, PDF, JPG, PNG) e faz a extração automática em lote por IA.';
     protected $usage       = 'ingest:folder <caminho_da_pasta> [opcoes]';
     protected $arguments   = [
-        'caminho_da_pasta' => 'Caminho absoluto ou relativo do diretório contendo os arquivos históricos (.txt, .md, .json)',
+        'caminho_da_pasta' => 'Caminho absoluto ou relativo do diretório contendo os arquivos históricos (.txt, .pdf, .jpg, .png, .json)',
     ];
     protected $options     = [
         '--auto-confirm-100' => 'Se presente, confirma automaticamente relações com 100% de confiança (1.0). As demais entram como hipótese.',
@@ -48,6 +49,7 @@ class IngestFolderCommand extends BaseCommand
         CLI::write("  CEREBRO — INGESTÃO E EXTRAÇÃO EM LOTE VIA IA (DEEPSEEK)", 'yellow');
         CLI::write("═══════════════════════════════════════════════════════════", 'yellow');
         CLI::write("Pasta: " . realpath($folderPath));
+        CLI::write("Formatos: TXT, PDF, JPG, JPEG, PNG, WEBP, JSON, CSV");
         CLI::write("Modo: Relações < 100% gravadas como HIPÓTESE" . ($autoConfirm100 ? " (100% auto-confirmadas)" : ""));
         CLI::write("");
 
@@ -56,7 +58,7 @@ class IngestFolderCommand extends BaseCommand
         $totalFound = count($files);
 
         if ($totalFound === 0) {
-            CLI::error("Nenhum arquivo de texto (.txt, .md, .json) encontrado na pasta informada.");
+            CLI::error("Nenhum arquivo suportado (.txt, .pdf, .jpg, .png, .json, .csv) encontrado na pasta informada.");
             return;
         }
 
@@ -68,6 +70,7 @@ class IngestFolderCommand extends BaseCommand
         }
 
         $deepSeek    = new DeepSeekService();
+        $docParser   = new DocumentParserService();
         $docModel    = new DocumentModel();
         $entityModel = new EntityModel();
         $relModel    = new RelationshipModel();
@@ -84,41 +87,45 @@ class IngestFolderCommand extends BaseCommand
 
         foreach ($files as $index => $filePath) {
             $fileName = basename($filePath);
-            $num = $index + 1;
-            CLI::write("[{$num}/" . count($files) . "] Lendo arquivo: {$fileName}...", 'green');
+            $ext      = pathinfo($filePath, PATHINFO_EXTENSION);
+            $num      = $index + 1;
+            CLI::write("[{$num}/" . count($files) . "] Lendo arquivo [{$ext}]: {$fileName}...", 'green');
 
-            // Ler conteúdo do arquivo
-            $content = file_get_contents($filePath);
-            if (empty(trim($content))) {
-                CLI::write("  └─ Arquivo vazio. Ignorado.", 'gray');
-                continue;
-            }
-
-            // Verificar se o documento já foi cadastrado
-            $existingDoc = $entityModel->where('name', $fileName)->where('type', 'document')->first();
-            if ($existingDoc) {
-                $documentId = $existingDoc['id'];
-                CLI::write("  └─ Documento existente no banco (ID: {$documentId}). Processando extração...", 'yellow');
-            } else {
-                // Cadastrar novo documento
-                $documentId = $docModel->insert([
-                    'name'       => $fileName,
-                    'type'       => 'document',
-                    'status'     => 'confirmed',
-                    'created_by' => 1,
-                    'validated_by' => 1,
-                    'attributes' => json_encode([
-                        'titulo'                 => $fileName,
-                        'caminho_arquivo'        => realpath($filePath),
-                        'descricao'              => mb_substr($content, 0, 4000), // primeiras partes do texto
-                        'instituicao_custodiadora'=> 'Ingestão em Lote',
-                    ], JSON_UNESCAPED_UNICODE),
-                ]);
-                CLI::write("  └─ Documento cadastrado (ID: {$documentId}).", 'light_gray');
-            }
-
-            // Invocar IA DeepSeek
             try {
+                // Ler e extrair texto do arquivo (TXT, PDF, JPG, PNG)
+                $parseResult = $docParser->parseFile($filePath, $ext);
+                $content     = $parseResult['text'] ?? '';
+
+                if (empty(trim($content))) {
+                    CLI::write("  └─ Sem conteúdo legível. Ignorado.", 'gray');
+                    continue;
+                }
+
+                // Verificar se o documento já foi cadastrado
+                $existingDoc = $entityModel->where('name', $fileName)->where('type', 'document')->first();
+                if ($existingDoc) {
+                    $documentId = $existingDoc['id'];
+                    CLI::write("  └─ Documento existente no banco (ID: {$documentId}). Processando extração...", 'yellow');
+                } else {
+                    // Cadastrar novo documento
+                    $documentId = $docModel->insert([
+                        'name'       => $fileName,
+                        'type'       => 'document',
+                        'status'     => 'confirmed',
+                        'created_by' => 1,
+                        'validated_by' => 1,
+                        'attributes' => json_encode([
+                            'titulo'                 => $fileName,
+                            'formato'                => strtoupper($ext),
+                            'caminho_arquivo'        => realpath($filePath),
+                            'descricao'              => mb_substr($content, 0, 4000),
+                            'instituicao_custodiadora'=> 'Ingestão em Lote',
+                        ], JSON_UNESCAPED_UNICODE),
+                    ]);
+                    CLI::write("  └─ Documento cadastrado (ID: {$documentId}).", 'light_gray');
+                }
+
+                // Invocar IA DeepSeek
                 $result = $deepSeek->extractKnowledge($fileName, mb_substr($content, 0, 8000));
                 $entities = $result['entities'] ?? [];
                 $rels     = $result['relationships'] ?? [];
@@ -149,7 +156,7 @@ class IngestFolderCommand extends BaseCommand
                     }
                 }
 
-                // 2. Mapear e salvar Relações (respeitando regra do usuário: < 100% vira hipótese)
+                // 2. Mapear e salvar Relações
                 $docHypothesisCount = 0;
                 $docRelsCount       = 0;
                 foreach ($rels as $rData) {
@@ -165,7 +172,6 @@ class IngestFolderCommand extends BaseCommand
                     $confidence = floatval($rData['confidence'] ?? 0.75);
                     $is100Pct   = $confidence >= 0.999;
 
-                    // Se não tiver 100% de certeza ou autoConfirm100 estiver falso -> HIPÓTESE
                     $status = ($is100Pct && $autoConfirm100) ? 'confirmed' : 'hypothesis';
 
                     $relModel->insert([
@@ -195,11 +201,10 @@ class IngestFolderCommand extends BaseCommand
                 CLI::write("     ✓ Extraídas " . count($entities) . " entidades e {$docRelsCount} relações ({$docHypothesisCount} hipóteses gravadas).", 'white');
 
             } catch (\Exception $e) {
-                CLI::write("     ❌ Erro na IA para '{$fileName}': " . $e->getMessage(), 'red');
+                CLI::write("     ❌ Erro ao ler/extrair '{$fileName}': " . $e->getMessage(), 'red');
             }
 
-            // Pequena pausa estratégica para evitar throttling da API
-            usleep(250000); // 250ms
+            usleep(250000);
         }
 
         CLI::write("\n═══════════════════════════════════════════════════════════", 'yellow');
@@ -213,7 +218,7 @@ class IngestFolderCommand extends BaseCommand
     }
 
     /**
-     * Procura recursivamente por arquivos de texto no diretório.
+     * Procura recursivamente por arquivos suportados no diretório.
      */
     private function findDocumentFiles(string $dir): array
     {
@@ -222,7 +227,7 @@ class IngestFolderCommand extends BaseCommand
             new \RecursiveDirectoryIterator($dir, \RecursiveDirectoryIterator::SKIP_DOTS)
         );
 
-        $allowedExtensions = ['txt', 'md', 'json', 'csv', 'log', 'txt2'];
+        $allowedExtensions = ['txt', 'md', 'json', 'csv', 'pdf', 'jpg', 'jpeg', 'png', 'webp', 'bmp'];
 
         foreach ($iterator as $file) {
             if ($file->isFile()) {

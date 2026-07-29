@@ -29,7 +29,7 @@ ob_start();
 
     <!-- Dropzone Area -->
     <div class="cbr-card mb-4" id="dropzone-card" style="border: 2px dashed var(--cbr-primary); background: var(--cbr-surface-2); text-align: center; padding: 3rem 1.5rem; transition: all var(--cbr-transition); cursor: pointer;">
-        <input type="file" id="batch-file-input" multiple accept=".txt,.md,.json,.csv" style="display:none">
+        <input type="file" id="batch-file-input" multiple accept=".txt,.md,.json,.csv,.pdf,.jpg,.jpeg,.png,.webp,.bmp" style="display:none">
         
         <div id="dropzone-content">
             <div style="width:64px;height:64px;border-radius:50%;background:var(--cbr-primary-dim);color:var(--cbr-primary);display:inline-flex;align-items:center;justify-content:center;font-size:2rem;margin-bottom:1rem">
@@ -39,7 +39,7 @@ ob_start();
                 Arraste e solte seus documentos aqui
             </h2>
             <p style="font-size:.875rem;color:var(--cbr-text-muted);margin-bottom:1.5rem">
-                Suporta múltiplos arquivos <code>.txt</code>, <code>.md</code>, <code>.json</code> e <code>.csv</code>
+                Suporta múltiplos arquivos <code>.pdf</code>, <code>.jpg</code>, <code>.jpeg</code>, <code>.png</code>, <code>.txt</code>, <code>.md</code>, <code>.json</code> e <code>.csv</code>
             </p>
             <button type="button" class="btn btn-primary btn-lg" id="btn-browse-files">
                 <i class="bi bi-folder2-open me-2"></i> Selecionar Arquivos da Pasta

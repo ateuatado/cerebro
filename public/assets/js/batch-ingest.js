@@ -64,14 +64,14 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     function handleFiles(files) {
-        // Filtrar formatos válidos
+        // Filtrar formatos válidos (TXT, PDF, JPG, PNG, etc.)
         const validFiles = files.filter(file => {
             const ext = file.name.split('.').pop().toLowerCase();
-            return ['txt', 'md', 'json', 'csv'].includes(ext);
+            return ['txt', 'md', 'json', 'csv', 'pdf', 'jpg', 'jpeg', 'png', 'webp', 'bmp'].includes(ext);
         });
 
         if (validFiles.length === 0) {
-            alert('Nenhum arquivo válido (.txt, .md, .json, .csv) foi selecionado.');
+            alert('Nenhum arquivo válido (.pdf, .jpg, .png, .txt, .md, .json, .csv) foi selecionado.');
             return;
         }
 

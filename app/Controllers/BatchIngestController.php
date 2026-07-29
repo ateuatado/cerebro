@@ -9,10 +9,11 @@ use App\Models\LocationModel;
 use App\Models\EventModel;
 use App\Models\RelationshipModel;
 use App\Services\DeepSeekService;
+use App\Services\DocumentParserService;
 use App\Services\AuthService;
 
 /**
- * BatchIngestController — Upload em Lote via Web UI e extração assíncrona por item
+ * BatchIngestController — Upload em Lote via Web UI (TXT, PDF, JPG, PNG) e extração por IA
  */
 class BatchIngestController extends BaseController
 {
@@ -36,7 +37,7 @@ class BatchIngestController extends BaseController
     }
 
     /**
-     * POST /api/documentos/upload-item — Recebe um arquivo do lote via AJAX, cadastra o documento e roda a IA
+     * POST /api/documentos/upload-item — Recebe arquivo (.txt, .pdf, .jpg, .png, etc.), extrai texto e roda a IA
      */
     public function uploadItem()
     {
@@ -51,41 +52,48 @@ class BatchIngestController extends BaseController
             ]);
         }
 
-        $fileName = $file->getClientName();
-        $content  = file_get_contents($file->getTempName());
+        $fileName  = $file->getClientName();
+        $ext       = strtolower($file->getClientExtension());
+        $tempPath  = $file->getTempName();
 
-        if (empty(trim($content))) {
-            return $this->response->setJSON([
-                'success' => false,
-                'fileName' => $fileName,
-                'message'  => 'Arquivo vazio. Ignorado.',
-            ]);
-        }
-
-        $userId = $this->auth->currentUser()['user_id'] ?? 1;
-        $docModel = new DocumentModel();
-
-        // 1. Verificar se o documento já foi cadastrado
-        $existingDoc = $this->entityModel->where('name', $fileName)->where('type', 'document')->first();
-        if ($existingDoc) {
-            $documentId = $existingDoc['id'];
-        } else {
-            $documentId = $docModel->insert([
-                'name'         => $fileName,
-                'type'         => 'document',
-                'status'       => 'confirmed',
-                'created_by'   => $userId,
-                'validated_by' => $userId,
-                'attributes'   => json_encode([
-                    'titulo'                 => $fileName,
-                    'descricao'              => mb_substr($content, 0, 4000),
-                    'instituicao_custodiadora'=> 'Upload em Lote (Web)',
-                ], JSON_UNESCAPED_UNICODE),
-            ]);
-        }
-
-        // 2. Acionar IA DeepSeek
         try {
+            // 1. Extrair conteúdo legível via DocumentParserService
+            $docParser   = new DocumentParserService();
+            $parseResult = $docParser->parseFile($tempPath, $ext);
+            $content     = $parseResult['text'] ?? '';
+
+            if (empty(trim($content))) {
+                return $this->response->setJSON([
+                    'success'  => false,
+                    'fileName' => $fileName,
+                    'message'  => 'Arquivo sem conteúdo legível. Ignorado.',
+                ]);
+            }
+
+            $userId = $this->auth->currentUser()['user_id'] ?? 1;
+            $docModel = new DocumentModel();
+
+            // 2. Verificar se o documento já foi cadastrado
+            $existingDoc = $this->entityModel->where('name', $fileName)->where('type', 'document')->first();
+            if ($existingDoc) {
+                $documentId = $existingDoc['id'];
+            } else {
+                $documentId = $docModel->insert([
+                    'name'         => $fileName,
+                    'type'         => 'document',
+                    'status'       => 'confirmed',
+                    'created_by'   => $userId,
+                    'validated_by' => $userId,
+                    'attributes'   => json_encode([
+                        'titulo'                 => $fileName,
+                        'formato'                => strtoupper($ext),
+                        'descricao'              => mb_substr($content, 0, 4000),
+                        'instituicao_custodiadora'=> 'Upload em Lote (Web)',
+                    ], JSON_UNESCAPED_UNICODE),
+                ]);
+            }
+
+            // 3. Acionar IA DeepSeek
             $deepSeek = new DeepSeekService();
             $result   = $deepSeek->extractKnowledge($fileName, mb_substr($content, 0, 8000));
 
