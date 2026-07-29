@@ -202,6 +202,23 @@ class EntityController extends BaseController
     // ─── Helpers ──────────────────────────────────────────────────────
 
     /**
+     * GET /documentos — Lista apenas entidades do tipo document
+     */
+    public function documents(): string
+    {
+        $entities = $this->entityModel
+            ->where('type', 'document')
+            ->orderBy('created_at', 'DESC')
+            ->findAll();
+
+        return view('entities/index', [
+            'entities'       => $entities,
+            'defaultType'    => 'document',
+            'pageTitle'      => 'Documentos',
+        ]);
+    }
+
+    /**
      * Normaliza atributos do formulário (aninhados e vazios)
      */
     private function flattenAttributes(array $attrs, string $type): array

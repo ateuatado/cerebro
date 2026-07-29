@@ -7,6 +7,7 @@ const CerebroGraph = (() => {
     let network = null;
     let allNodes = [], allEdges = [];
     let activeFilter = 'all';
+    let nodeClickCb = null;
 
     // Cores por tipo de entidade (espelham as variáveis CSS)
     const TYPE_COLORS = {
@@ -144,6 +145,13 @@ const CerebroGraph = (() => {
             }
         });
 
+        // Single-click: dispara callback externo (painel de detalhe)
+        network.on('click', params => {
+            if (params.nodes.length > 0 && typeof nodeClickCb === 'function') {
+                nodeClickCb(params.nodes[0]);
+            }
+        });
+
         // Estabilização
         network.on('stabilizationIterationsDone', () => {
             network.setOptions({ physics: { enabled: false } });
@@ -210,5 +218,9 @@ const CerebroGraph = (() => {
         });
     }
 
-    return { init };
+    function onNodeClick(cb) {
+        nodeClickCb = cb;
+    }
+
+    return { init, onNodeClick };
 })();
