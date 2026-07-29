@@ -38,5 +38,11 @@ $routes->group('relacoes', ['filter' => 'auth'], function ($routes) {
 // ─── Grafo dedicado ───────────────────────────────────────────────────
 $routes->get('grafo', 'GraphController::index', ['filter' => 'auth']);
 
-// ─── Documentos — listagem via EntityController (tipo=document) ───────
+// ─── Documentos — listagem e extração via IA ───────────────────────────
 $routes->get('documentos', 'EntityController::documents', ['filter' => 'auth']);
+
+$routes->group('documentos', ['filter' => 'auth'], function ($routes) {
+    $routes->post('(:num)/extrair',       'ExtractionController::extract/$1');
+    $routes->get('(:num)/revisar',        'ExtractionController::review/$1');
+    $routes->post('(:num)/aprovar-todas', 'ExtractionController::approveAll/$1');
+});

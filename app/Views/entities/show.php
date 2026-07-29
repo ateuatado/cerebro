@@ -80,6 +80,23 @@ ob_start();
             </button>
             <?php endif; ?>
 
+            <!-- Processar com IA (para Documentos) -->
+            <?php if ($entity['type'] === 'document'): ?>
+            <form action="<?= base_url('documentos/' . $entity['id'] . '/extrair') ?>" method="post" style="display:inline">
+                <?= csrf_field() ?>
+                <button type="submit" class="btn btn-primary btn-sm d-flex align-items-center gap-1" id="btn-ai-extract">
+                    <i class="bi bi-robot" aria-hidden="true"></i>
+                    <span>Processar com IA (DeepSeek)</span>
+                </button>
+            </form>
+            <a href="<?= base_url('documentos/' . $entity['id'] . '/revisar') ?>"
+               class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1"
+               id="btn-ai-review">
+                <i class="bi bi-eye" aria-hidden="true"></i>
+                <span>Ver Revisão IA</span>
+            </a>
+            <?php endif; ?>
+
             <a href="<?= base_url('relacoes/nova?origem=' . $entity['id']) ?>"
                class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1"
                id="btn-add-relation">
