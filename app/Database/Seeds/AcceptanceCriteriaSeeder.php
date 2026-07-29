@@ -61,7 +61,7 @@ class AcceptanceCriteriaSeeder extends Seeder
         $this->ids['person'] = $this->personModel->insert([
             'name'         => 'João da Silva',
             'attributes'   => json_encode(['profissao' => 'operário', 'apelido' => 'João Ferreiro']),
-            'validated_by' => 'seed',
+            'validated_by' => 1,
             'status'       => 'confirmed',
         ]);
         echo "  pessoa   id={$this->ids['person']} ✓\n";
@@ -69,7 +69,7 @@ class AcceptanceCriteriaSeeder extends Seeder
         $this->ids['location'] = $this->locationModel->insert([
             'name'         => 'São Paulo',
             'attributes'   => json_encode(['tipo' => 'cidade', 'estado' => 'SP']),
-            'validated_by' => 'seed',
+            'validated_by' => 1,
             'status'       => 'confirmed',
         ]);
         echo "  local    id={$this->ids['location']} ✓\n";
@@ -77,7 +77,7 @@ class AcceptanceCriteriaSeeder extends Seeder
         $this->ids['event'] = $this->eventModel->insert([
             'name'         => 'Manifestação de Julho de 1929',
             'attributes'   => json_encode(['data' => '1929-07-15']),
-            'validated_by' => 'seed',
+            'validated_by' => 1,
             'status'       => 'confirmed',
         ]);
         echo "  evento   id={$this->ids['event']} ✓\n";
@@ -85,7 +85,7 @@ class AcceptanceCriteriaSeeder extends Seeder
         $this->ids['document'] = $this->documentModel->insert([
             'name'         => 'Processo Judicial n. 487/1929',
             'attributes'   => json_encode(['tipo_documento' => 'processo_judicial']),
-            'validated_by' => 'seed',
+            'validated_by' => 1,
             'status'       => 'confirmed',
         ]);
         echo "  documento id={$this->ids['document']} ✓\n\n";
@@ -128,7 +128,7 @@ class AcceptanceCriteriaSeeder extends Seeder
             'source_document_id' => $this->ids['document'],
             'source_reference'   => json_encode(['description' => 'fl. 47, §3']),
             'status'             => 'confirmed',
-            'validated_by'       => 'seed',
+            'validated_by'       => 1,
         ]);
         $this->ids['rel'] = $relId;
         echo "  relação criada: id={$relId}\n";
