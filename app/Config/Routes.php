@@ -43,6 +43,7 @@ $routes->get('documentos',      'EntityController::documents', ['filter' => 'aut
 $routes->get('documentos/lote', 'BatchIngestController::index', ['filter' => 'auth']);
 
 $routes->group('documentos', ['filter' => 'auth'], function ($routes) {
+    $routes->post('reprocessar-tudo',     'ExtractionController::reprocessAll');
     $routes->post('(:num)/extrair',       'ExtractionController::extract/$1');
     $routes->get('(:num)/revisar',        'ExtractionController::review/$1');
     $routes->post('(:num)/aprovar-todas', 'ExtractionController::approveAll/$1');

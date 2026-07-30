@@ -8,10 +8,11 @@ use App\Models\LocationModel;
 use App\Models\EventModel;
 use App\Models\RelationshipModel;
 use App\Services\DeepSeekService;
+use App\Services\DocumentParserService;
 use App\Services\AuthService;
 
 /**
- * ExtractionController — Extração automática via DeepSeek e interface de revisão
+ * ExtractionController — Extração automática via DeepSeek + OCR e interface de revisão
  */
 class ExtractionController extends BaseController
 {
@@ -28,7 +29,7 @@ class ExtractionController extends BaseController
 
     /**
      * POST /documentos/(:num)/extrair
-     * Chama a IA para ler o documento e persistir hipóteses de entidades e relações.
+     * Chama OCR (se imagem/PDF) e a IA para reler o documento e persistir hipóteses de entidades e relações.
      */
     public function extract(int $documentId)
     {
@@ -42,25 +43,42 @@ class ExtractionController extends BaseController
             ? (json_decode($doc['attributes'], true) ?? [])
             : ($doc['attributes'] ?? []);
 
-        // Texto do documento (procura em descricao, notas, conteudo ou titulo)
-        $docText = $attrs['descricao'] ?? $attrs['notas'] ?? $attrs['titulo'] ?? $doc['name'];
+        // Se o arquivo físico existe no servidor, rodar OCR/Parser para garantir texto atualizado
+        $docText = $attrs['descricao'] ?? '';
+        $filePath = $attrs['caminho_arquivo'] ?? '';
+        $ext      = strtolower($attrs['formato'] ?? pathinfo($doc['name'], PATHINFO_EXTENSION));
+
+        if (!empty($filePath) && file_exists($filePath)) {
+            try {
+                $docParser   = new DocumentParserService();
+                $parseResult = $docParser->parseFile($filePath, $ext);
+                if (!empty(trim($parseResult['text']))) {
+                    $docText = $parseResult['text'];
+                    $attrs['descricao'] = mb_substr($docText, 0, 4000);
+                    $this->entityModel->update($documentId, [
+                        'attributes' => json_encode($attrs, JSON_UNESCAPED_UNICODE)
+                    ]);
+                }
+            } catch (\Exception $e) {
+                // Mantém docText existente se a relitura falhar
+            }
+        }
 
         if (empty($docText)) {
-            session()->setFlashdata('error', 'O documento não contém texto ou descrição para extração.');
-            return redirect()->to('entidades/' . $documentId);
+            $docText = $attrs['notas'] ?? $attrs['titulo'] ?? $doc['name'];
         }
 
         try {
             $deepSeek = new DeepSeekService();
-            $result   = $deepSeek->extractKnowledge($doc['name'], $docText, $attrs);
+            $result   = $deepSeek->extractKnowledge($doc['name'], mb_substr($docText, 0, 8000), $attrs);
 
             $extractedEntities = $result['entities'] ?? [];
             $extractedRels     = $result['relationships'] ?? [];
 
-            $createdUser = $this->auth->currentUser()['user_id'] ?? null;
+            $createdUser = $this->auth->currentUser()['user_id'] ?? 1;
 
             // 1. Persistir Entidades como hipóteses
-            $entityNameMap = []; // Nome -> ID
+            $entityNameMap = [];
             $modelMap = [
                 'person'   => new PersonModel(),
                 'location' => new LocationModel(),
@@ -72,7 +90,6 @@ class ExtractionController extends BaseController
                 $type = $eData['type'] ?? 'person';
                 if (empty($name)) continue;
 
-                // Verificar se já existe entidade com este nome
                 $existing = $this->entityModel->where('name', $name)->first();
                 if ($existing) {
                     $entityNameMap[$name] = $existing['id'];
@@ -122,13 +139,132 @@ class ExtractionController extends BaseController
                 $countRels++;
             }
 
-            session()->setFlashdata('success', "IA concluiu a análise! Extraídas " . count($entityNameMap) . " entidades e {$countRels} relações como hipóteses.");
+            session()->setFlashdata('success', "Re-leitura concluída! Extraídas " . count($entityNameMap) . " entidades e {$countRels} relações como hipóteses.");
             return redirect()->to('documentos/' . $documentId . '/revisar');
 
         } catch (\Exception $e) {
             session()->setFlashdata('error', 'Falha na extração por IA: ' . $e->getMessage());
             return redirect()->to('entidades/' . $documentId);
         }
+    }
+
+    /**
+     * POST /documentos/reprocessar-tudo
+     * Relê e re-extrai conhecimento via OCR + IA de todos os documentos já cadastrados no banco.
+     */
+    public function reprocessAll()
+    {
+        $documents = $this->entityModel->where('type', 'document')->findAll();
+
+        if (empty($documents)) {
+            session()->setFlashdata('info', 'Nenhum documento encontrado no banco de dados para reprocessamento.');
+            return redirect()->to('documentos');
+        }
+
+        $reprocessedCount = 0;
+        $totalEntities    = 0;
+        $totalRels        = 0;
+
+        $docParser = new DocumentParserService();
+        $deepSeek  = new DeepSeekService();
+        $modelMap  = [
+            'person'   => new PersonModel(),
+            'location' => new LocationModel(),
+            'event'    => new EventModel(),
+        ];
+        $userId = $this->auth->currentUser()['user_id'] ?? 1;
+
+        foreach ($documents as $doc) {
+            $attrs = is_string($doc['attributes'])
+                ? (json_decode($doc['attributes'], true) ?? [])
+                : ($doc['attributes'] ?? []);
+
+            $filePath = $attrs['caminho_arquivo'] ?? '';
+            $ext      = strtolower($attrs['formato'] ?? pathinfo($doc['name'], PATHINFO_EXTENSION));
+            $docText  = $attrs['descricao'] ?? '';
+
+            // Se o arquivo físico existe, executa OCR
+            if (!empty($filePath) && file_exists($filePath)) {
+                try {
+                    $parseResult = $docParser->parseFile($filePath, $ext);
+                    if (!empty(trim($parseResult['text']))) {
+                        $docText = $parseResult['text'];
+                        $attrs['descricao'] = mb_substr($docText, 0, 4000);
+                        $this->entityModel->update($doc['id'], [
+                            'attributes' => json_encode($attrs, JSON_UNESCAPED_UNICODE)
+                        ]);
+                    }
+                } catch (\Exception $e) {}
+            }
+
+            if (empty($docText)) continue;
+
+            try {
+                $result = $deepSeek->extractKnowledge($doc['name'], mb_substr($docText, 0, 8000), $attrs);
+                $entities = $result['entities'] ?? [];
+                $rels     = $result['relationships'] ?? [];
+
+                $entityNameMap = [];
+                foreach ($entities as $eData) {
+                    $eName = trim($eData['name'] ?? '');
+                    $eType = $eData['type'] ?? 'person';
+                    if (empty($eName)) continue;
+
+                    $existing = $this->entityModel->where('name', $eName)->first();
+                    if ($existing) {
+                        $entityNameMap[$eName] = $existing['id'];
+                        continue;
+                    }
+
+                    $model = $modelMap[$eType] ?? $modelMap['person'];
+                    $eid = $model->insert([
+                        'type'       => in_array($eType, ['person','location','event']) ? $eType : 'person',
+                        'name'       => $eName,
+                        'status'     => 'hypothesis',
+                        'attributes' => json_encode($eData['attributes'] ?? [], JSON_UNESCAPED_UNICODE),
+                        'created_by' => $userId,
+                    ]);
+                    if ($eid) $entityNameMap[$eName] = $eid;
+                }
+
+                $relsCount = 0;
+                foreach ($rels as $rData) {
+                    $srcName = trim($rData['source_name'] ?? '');
+                    $tgtName = trim($rData['target_name'] ?? '');
+                    $relType = trim($rData['relationship_type'] ?? 'associado_a');
+
+                    $srcId = $entityNameMap[$srcName] ?? null;
+                    $tgtId = $entityNameMap[$tgtName] ?? null;
+
+                    if (!$srcId || !$tgtId || $srcId === $tgtId) continue;
+
+                    $confidence = floatval($rData['confidence'] ?? 0.75);
+
+                    $this->relModel->insert([
+                        'source_entity_id'  => $srcId,
+                        'target_entity_id'  => $tgtId,
+                        'relationship_type' => $relType,
+                        'direction'         => ($rData['direction'] ?? 'directed') === 'symmetric' ? 'symmetric' : 'directed',
+                        'confidence'        => round(max(0.5, min(0.99, $confidence)), 2),
+                        'source_document_id'=> $doc['id'],
+                        'source_reference'  => json_encode(['trecho' => $rData['excerpt'] ?? ''], JSON_UNESCAPED_UNICODE),
+                        'status'            => 'hypothesis',
+                        'created_by'        => $userId,
+                    ]);
+                    $relsCount++;
+                }
+
+                $totalEntities += count($entities);
+                $totalRels     += $relsCount;
+                $reprocessedCount++;
+
+            } catch (\Exception $e) {}
+
+            usleep(200000);
+        }
+
+        session()->setFlashdata('success', "Reprocessamento concluído! {$reprocessedCount} documento(s) re-lidos, {$totalEntities} entidade(s) e {$totalRels} relação(ões) geradas.");
+        return redirect()->to('documentos');
     }
 
     /**
@@ -143,10 +279,8 @@ class ExtractionController extends BaseController
             return redirect()->to('entidades');
         }
 
-        // Relações vinculadas a este documento
         $relationships = $this->relModel->findByDocument($documentId);
 
-        // Enriquecer com entidades
         $relatedEntities = [];
         foreach ($relationships as $r) {
             $src = $this->entityModel->find($r['source_entity_id']);
@@ -185,7 +319,6 @@ class ExtractionController extends BaseController
                 ]);
                 $confirmedCount++;
 
-                // Confirmar também as entidades vinculadas se forem hipóteses
                 foreach ([$r['source_entity_id'], $r['target_entity_id']] as $eid) {
                     $e = $this->entityModel->find($eid);
                     if ($e && $e['status'] === 'hypothesis') {

@@ -22,9 +22,17 @@ ob_start();
                 Envie múltiplos documentos de uma vez. A IA lerá o conteúdo e criará o grafo de hipóteses em tempo real.
             </p>
         </div>
-        <a href="<?= base_url('grafo') ?>" class="btn btn-outline-primary d-flex align-items-center gap-2" id="btn-view-graph-top">
-            <i class="bi bi-diagram-3"></i> Ver Grafo Visual
-        </a>
+        <div class="d-flex gap-2">
+            <form action="<?= base_url('documentos/reprocessar-tudo') ?>" method="post" onsubmit="return confirm('Relê todos os documentos cadastrados utilizando OCR + IA?');">
+                <?= csrf_field() ?>
+                <button type="submit" class="btn btn-outline-secondary d-flex align-items-center gap-2" id="btn-reprocess-all">
+                    <i class="bi bi-arrow-repeat"></i> Reprocessar Existentes (OCR + IA)
+                </button>
+            </form>
+            <a href="<?= base_url('grafo') ?>" class="btn btn-outline-primary d-flex align-items-center gap-2" id="btn-view-graph-top">
+                <i class="bi bi-diagram-3"></i> Ver Grafo Visual
+            </a>
+        </div>
     </div>
 
     <!-- Dropzone Area -->
