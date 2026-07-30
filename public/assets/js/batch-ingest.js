@@ -161,8 +161,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     formData.append(csrf.dataset.name || 'csrf_token', csrf.content);
                 }
 
-                const baseUrl = (window.BASE_URL || '/').replace(/\/+$/, '') + '/';
-                const response = await fetch(baseUrl + 'api/documentos/upload-item', {
+                const uploadUrl = dropzoneCard.dataset.uploadUrl 
+                    || ((window.BASE_URL || '/').replace(/\/+$/, '') + '/api/documentos/upload-item');
+
+                const response = await fetch(uploadUrl, {
                     method: 'POST',
                     headers: { 'X-Requested-With': 'XMLHttpRequest' },
                     body: formData

@@ -53,6 +53,7 @@ $routes->group('documentos', ['filter' => 'auth'], function ($routes) {
 
 // API de Upload em Lote (AJAX)
 $routes->post('api/documentos/upload-item', 'BatchIngestController::uploadItem', ['filter' => 'auth']);
+$routes->post('documentos/api/documentos/upload-item', 'BatchIngestController::uploadItem', ['filter' => 'auth']);
 
 // ─── Documentos Pendentes de Extração — Spec 6 ───────────────────────
 $routes->get('documentos/pendentes',                       'PendingExtractionController::index', ['filter' => 'auth']);

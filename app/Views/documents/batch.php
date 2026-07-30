@@ -41,7 +41,7 @@ ob_start();
     </div>
 
     <!-- Dropzone Area -->
-    <div class="cbr-card mb-4" id="dropzone-card" style="border: 2px dashed var(--cbr-primary); background: var(--cbr-surface-2); text-align: center; padding: 3rem 1.5rem; transition: all var(--cbr-transition); cursor: pointer;">
+    <div class="cbr-card mb-4" id="dropzone-card" data-upload-url="<?= base_url('api/documentos/upload-item') ?>" style="border: 2px dashed var(--cbr-primary); background: var(--cbr-surface-2); text-align: center; padding: 3rem 1.5rem; transition: all var(--cbr-transition); cursor: pointer;">
         <input type="file" id="batch-file-input" multiple accept=".txt,.md,.json,.csv,.pdf,.jpg,.jpeg,.png,.webp,.bmp" style="display:none">
         
         <div id="dropzone-content">
