@@ -25,19 +25,19 @@ class DocumentReviewController extends BaseController
 
     private function getAbsoluteFilePath(array $attributes): string
     {
-        $rel = $attributes['caminho_arquivo'] ?? '';
+        $rel = str_replace('\\', '/', $attributes['caminho_arquivo'] ?? '');
         if (empty($rel)) return '';
 
         if (file_exists($rel)) {
-            return $rel;
+            return str_replace('\\', '/', $rel);
         }
 
-        $fullPath = WRITEPATH . 'uploads/' . ltrim($rel, '/\\');
+        $fullPath = str_replace('\\', '/', WRITEPATH . 'uploads/' . ltrim($rel, '/\\'));
         if (file_exists($fullPath)) {
             return $fullPath;
         }
 
-        $docPath = WRITEPATH . 'uploads/documents/' . ltrim(basename($rel), '/\\');
+        $docPath = str_replace('\\', '/', WRITEPATH . 'uploads/documents/' . ltrim(basename($rel), '/\\'));
         if (file_exists($docPath)) {
             return $docPath;
         }
@@ -58,7 +58,7 @@ class DocumentReviewController extends BaseController
 
         $attributes  = is_string($doc['attributes']) ? json_decode($doc['attributes'], true) : ($doc['attributes'] ?? []);
         $filePath    = $this->getAbsoluteFilePath($attributes);
-        $cacheDir    = WRITEPATH . 'uploads/page_cache_' . $id;
+        $cacheDir    = str_replace('\\', '/', WRITEPATH . 'uploads/page_cache_' . $id);
 
         $totalPages = 1;
         if (!empty($filePath) && file_exists($filePath)) {
@@ -108,17 +108,21 @@ class DocumentReviewController extends BaseController
             return $this->response->setHeader('Content-Type', $mime)->setBody(file_get_contents($filePath));
         }
 
-        $cacheDir  = WRITEPATH . 'uploads/page_cache_' . $id;
+        $cacheDir  = str_replace('\\', '/', WRITEPATH . 'uploads/page_cache_' . $id);
         $this->parserService->renderPdfPagesToCache($filePath, $cacheDir);
 
         $pageFile = $cacheDir . '/page_' . $page . '.jpg';
         if (!file_exists($pageFile)) {
             $pages = glob($cacheDir . '/page_*.jpg');
+            sort($pages, SORT_NATURAL);
             $pageFile = $pages[0] ?? null;
         }
 
         if ($pageFile && file_exists($pageFile)) {
-            return $this->response->setHeader('Content-Type', 'image/jpeg')->setBody(file_get_contents($pageFile));
+            return $this->response
+                ->setHeader('Content-Type', 'image/jpeg')
+                ->setHeader('Cache-Control', 'no-cache, must-revalidate')
+                ->setBody(file_get_contents($pageFile));
         }
 
         return $this->response->setStatusCode(404)->setBody('Página não encontrada.');
@@ -144,7 +148,7 @@ class DocumentReviewController extends BaseController
         if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'bmp'])) {
             $targetImg = $filePath;
         } else {
-            $cacheDir  = WRITEPATH . 'uploads/page_cache_' . $id;
+            $cacheDir  = str_replace('\\', '/', WRITEPATH . 'uploads/page_cache_' . $id);
             $targetImg = $cacheDir . '/page_' . $page . '.jpg';
         }
 
@@ -193,7 +197,7 @@ class DocumentReviewController extends BaseController
         if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'bmp'])) {
             $targetImg = $filePath;
         } else {
-            $cacheDir  = WRITEPATH . 'uploads/page_cache_' . $id;
+            $cacheDir  = str_replace('\\', '/', WRITEPATH . 'uploads/page_cache_' . $id);
             $targetImg = $cacheDir . '/page_' . $page . '.jpg';
         }
 
@@ -244,7 +248,7 @@ class DocumentReviewController extends BaseController
         if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'bmp'])) {
             $targetImg = $filePath;
         } else {
-            $cacheDir  = WRITEPATH . 'uploads/page_cache_' . $id;
+            $cacheDir  = str_replace('\\', '/', WRITEPATH . 'uploads/page_cache_' . $id);
             $targetImg = $cacheDir . '/page_' . $page . '.jpg';
         }
 

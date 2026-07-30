@@ -130,14 +130,17 @@ class DocumentParserService
             ];
         }
 
+        $pdfPath  = str_replace('\\', '/', $pdfPath);
+        $cacheDir = str_replace('\\', '/', $cacheDir);
+
         // Script Python inline com fitz (PyMuPDF) para renderização a 150 DPI
         $pyCode = <<<PYTHON
 import os, fitz
-doc = fitz.open(r"{$pdfPath}")
+doc = fitz.open("{$pdfPath}")
 for idx in range(len(doc)):
     page = doc[idx]
     pix = page.get_pixmap(dpi=150)
-    img_p = os.path.join(r"{$cacheDir}", f"page_{idx+1}.jpg")
+    img_p = os.path.join("{$cacheDir}", f"page_{idx+1}.jpg")
     pix.save(img_p, jpg_quality=90)
 PYTHON;
 
