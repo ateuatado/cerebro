@@ -1,0 +1,33 @@
+/* Cerebro — Estilos para Tela de Documentos Pendentes (Spec 6) */
+
+.font-monospace {
+    font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+}
+
+.table-dark th {
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+.modal-content {
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.bg-black {
+    background-color: #0b0e14 !important;
+}
+
+.progress {
+    overflow: hidden;
+    border-radius: 6px;
+}
+
+.badge.bg-outline-secondary {
+    background: transparent;
+}
