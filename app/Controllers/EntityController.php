@@ -219,6 +219,33 @@ class EntityController extends BaseController
     }
 
     /**
+     * GET /documentos/(:num)/arquivo — Transmite o arquivo original (imagem ou PDF)
+     */
+    public function serveFile(int $id)
+    {
+        $doc = $this->entityModel->find($id);
+        if (!$doc || $doc['type'] !== 'document') {
+            return $this->response->setStatusCode(404)->setBody('Documento não encontrado.');
+        }
+
+        $attrs = is_string($doc['attributes'])
+            ? (json_decode($doc['attributes'], true) ?? [])
+            : ($doc['attributes'] ?? []);
+
+        $filePath = $attrs['caminho_arquivo'] ?? '';
+
+        if (empty($filePath) || !file_exists($filePath)) {
+            return $this->response->setStatusCode(404)->setBody('Arquivo original não encontrado no servidor.');
+        }
+
+        $mime = mime_content_type($filePath) ?: 'application/octet-stream';
+        return $this->response
+            ->setHeader('Content-Type', $mime)
+            ->setHeader('Content-Disposition', 'inline; filename="' . basename($doc['name']) . '"')
+            ->setBody(file_get_contents($filePath));
+    }
+
+    /**
      * Normaliza atributos do formulário (aninhados e vazios)
      */
     private function flattenAttributes(array $attrs, string $type): array

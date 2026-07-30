@@ -37,7 +37,7 @@ class BatchIngestController extends BaseController
     }
 
     /**
-     * POST /api/documentos/upload-item — Recebe arquivo (.txt, .pdf, .jpg, .png, etc.), extrai texto e roda a IA
+     * POST /api/documentos/upload-item — Recebe arquivo (.txt, .pdf, .jpg, .png, etc.), salva o arquivo, extrai texto e roda a IA
      */
     public function uploadItem()
     {
@@ -52,14 +52,23 @@ class BatchIngestController extends BaseController
             ]);
         }
 
-        $fileName  = $file->getClientName();
-        $ext       = strtolower($file->getClientExtension());
-        $tempPath  = $file->getTempName();
+        $fileName = $file->getClientName();
+        $ext      = strtolower($file->getClientExtension());
 
         try {
-            // 1. Extrair conteúdo legível via DocumentParserService
+            // 1. Salvar o arquivo permanentemente em writable/uploads/documents/
+            $uploadDir = WRITEPATH . 'uploads/documents/';
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0755, true);
+            }
+
+            $savedFileName = time() . '_' . preg_replace('/[^a-zA-Z0-9_\.-]/', '_', $fileName);
+            $file->move($uploadDir, $savedFileName);
+            $savedFilePath = $uploadDir . $savedFileName;
+
+            // 2. Extrair conteúdo legível via DocumentParserService (OCR para imagens e PDFs)
             $docParser   = new DocumentParserService();
-            $parseResult = $docParser->parseFile($tempPath, $ext);
+            $parseResult = $docParser->parseFile($savedFilePath, $ext);
             $content     = $parseResult['text'] ?? '';
 
             if (empty(trim($content))) {
@@ -73,10 +82,17 @@ class BatchIngestController extends BaseController
             $userId = $this->auth->currentUser()['user_id'] ?? 1;
             $docModel = new DocumentModel();
 
-            // 2. Verificar se o documento já foi cadastrado
+            // 3. Verificar se o documento já foi cadastrado
             $existingDoc = $this->entityModel->where('name', $fileName)->where('type', 'document')->first();
             if ($existingDoc) {
                 $documentId = $existingDoc['id'];
+                $currentAttrs = is_string($existingDoc['attributes']) ? (json_decode($existingDoc['attributes'], true) ?? []) : ($existingDoc['attributes'] ?? []);
+                $currentAttrs['caminho_arquivo'] = $savedFilePath;
+                $currentAttrs['formato']         = strtoupper($ext);
+                $currentAttrs['descricao']       = mb_substr($content, 0, 4000);
+                $this->entityModel->update($documentId, [
+                    'attributes' => json_encode($currentAttrs, JSON_UNESCAPED_UNICODE)
+                ]);
             } else {
                 $documentId = $docModel->insert([
                     'name'         => $fileName,
@@ -87,13 +103,14 @@ class BatchIngestController extends BaseController
                     'attributes'   => json_encode([
                         'titulo'                 => $fileName,
                         'formato'                => strtoupper($ext),
+                        'caminho_arquivo'        => $savedFilePath,
                         'descricao'              => mb_substr($content, 0, 4000),
                         'instituicao_custodiadora'=> 'Upload em Lote (Web)',
                     ], JSON_UNESCAPED_UNICODE),
                 ]);
             }
 
-            // 3. Acionar IA DeepSeek
+            // 4. Acionar IA DeepSeek
             $deepSeek = new DeepSeekService();
             $result   = $deepSeek->extractKnowledge($fileName, mb_substr($content, 0, 8000));
 

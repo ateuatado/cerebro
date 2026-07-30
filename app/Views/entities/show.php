@@ -130,6 +130,11 @@ ob_start();
                     ? (json_decode($entity['attributes'], true) ?? [])
                     : ($entity['attributes'] ?? []);
 
+                // Se houver arquivo original cadastrado/mapeado
+                $filePath = $attrs['caminho_arquivo'] ?? '';
+                $format   = strtolower($attrs['formato'] ?? pathinfo($entity['name'], PATHINFO_EXTENSION));
+                $hasFile  = !empty($filePath) && file_exists($filePath);
+
                 if (empty($attrs)):
                 ?>
                 <p class="text-subtle" style="font-size:.875rem;margin:0">
@@ -138,7 +143,17 @@ ob_start();
                 <?php else: ?>
                 <div class="cbr-attr-table" role="list">
                     <?php foreach ($attrs as $key => $value):
+                        // Ocultar caminho técnico interno para manter limpo
+                        if ($key === 'caminho_arquivo') continue;
+
                         $label = $attrLabels[$key] ?? ucwords(str_replace('_', ' ', $key));
+
+                        // Limpar texto de EXIF cru se presente
+                        if ($key === 'descricao' && is_string($value) && strpos($value, 'Metadados EXIF:') !== false) {
+                            $parts = explode('Metadados EXIF:', $value);
+                            $value = trim($parts[0]);
+                        }
+
                         if (is_array($value)):
                     ?>
                     <div class="cbr-attr-row" role="listitem">
@@ -162,6 +177,57 @@ ob_start();
                 <?php endif; ?>
             </div>
         </div>
+
+        <!-- ─── Visualizador do Arquivo Original (se Documento) ─────── -->
+        <?php if ($entity['type'] === 'document'): ?>
+        <div class="cbr-detail-section" style="grid-column: 1 / -1">
+            <div class="cbr-detail-section-header">
+                <h2 class="cbr-detail-section-title">
+                    <i class="bi bi-file-earmark-image" aria-hidden="true"></i>
+                    Arquivo Original (Fonte Primária)
+                </h2>
+                <?php if ($hasFile): ?>
+                <a href="<?= base_url('documentos/' . $entity['id'] . '/arquivo') ?>"
+                   target="_blank"
+                   class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1">
+                    <i class="bi bi-box-arrow-up-right"></i> Abrir em Tela Cheia
+                </a>
+                <?php endif; ?>
+            </div>
+            <div class="cbr-detail-section-body" style="text-align:center;background:var(--cbr-surface-2)">
+                <?php if ($hasFile): ?>
+                    <?php if (in_array($format, ['jpg', 'jpeg', 'png', 'webp', 'bmp'])): ?>
+                    <div class="p-2" style="max-height:600px;overflow:auto">
+                        <img src="<?= base_url('documentos/' . $entity['id'] . '/arquivo') ?>"
+                             alt="<?= esc($entity['name']) ?>"
+                             class="img-fluid rounded border shadow-sm"
+                             style="max-height:550px;object-fit:contain">
+                    </div>
+                    <?php elseif ($format === 'pdf'): ?>
+                    <iframe src="<?= base_url('documentos/' . $entity['id'] . '/arquivo') ?>"
+                            style="width:100%;height:550px;border:1px solid var(--cbr-border);border-radius:var(--cbr-radius-sm)"></iframe>
+                    <?php else: ?>
+                    <div class="py-3">
+                        <i class="bi bi-file-earmark-text" style="font-size:3rem;color:var(--cbr-text-muted)"></i>
+                        <p class="mt-2" style="font-size:.875rem;color:var(--cbr-text)">
+                            Arquivo de texto gravado: <strong><?= esc($entity['name']) ?></strong>
+                        </p>
+                        <a href="<?= base_url('documentos/' . $entity['id'] . '/arquivo') ?>" target="_blank" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-download me-1"></i> Baixar Arquivo Original
+                        </a>
+                    </div>
+                    <?php endif; ?>
+                <?php else: ?>
+                    <div class="py-4 text-center">
+                        <i class="bi bi-exclamation-triangle" style="font-size:2.5rem;color:var(--cbr-hypothesis)"></i>
+                        <p class="mt-2" style="font-size:.875rem;color:var(--cbr-text-muted)">
+                            O arquivo físico original deste documento não está presente no servidor (somente os metadados).
+                        </p>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php endif; ?>
 
         <!-- ─── Fonte / rastreabilidade ───────────────────────── -->
         <div class="cbr-detail-section">
