@@ -21,7 +21,8 @@ A **Spec 6** introduz a arquitetura de **Ingestão em Dois Estágios Desacoplado
 
 ### RF-1: Armazenamento no Repositório de Texto Bruto (Estágio 1)
 - O sistema deve aceitar upload de arquivos (.txt, .pdf, .jpg, .png, .jpeg, .webp).
-- O `DocumentParserService` extrai 100% da transcrição/OCR sem truncamento arbitrário.
+- O `DocumentParserService` utiliza `Smalot\PdfParser` nativo em PHP como leitor primário de PDFs para extração de texto nativo sem dependência de executáveis CLI externos.
+- Em arquivos escaneados ou imagens sem camada de texto nativo, o sistema registra o documento com status `pending` e disponibiliza o arquivo para transcrição visual no Workspace Interativo.
 - O documento é registrado/atualizado na tabela `entities` (type = `document`), armazenando a transcrição completa no atributo `attributes->'conteudo_transcrito'`.
 - O documento recebe o status de extração `attributes->'extraction_status' = 'pending'`.
 

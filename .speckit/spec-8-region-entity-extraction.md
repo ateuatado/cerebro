@@ -22,10 +22,11 @@ A **Spec 8** permite que o pesquisador selecione qualquer área retangular do do
 - Adição do botão **"✨ Extrair Entidades (IA)"** na barra de ferramentas do recorte de região.
 - Ao selecionar uma área retangular e clicar no botão, o backend recebe as coordenadas `[x, y, w, h]`, recorta a imagem e envia a região para o pipeline de leitura e extração.
 
-### RF-2: Pipeline de Visão Multimodal & HTR
-- Envio do recorte em alta definição codificado em Base64 para a API da IA com prompt especializado em reconhecer caligrafia cursiva em português e extrair entidades.
+### RF-2: Pipeline de Visão Multimodal & HTR (Gemini Vision + DeepSeek)
+- **Leitura da Imagem (Gemini Vision)**: O recorte em alta definição (Base64) é enviado prioritariamente à API Gemini 2.0 Flash (`gemini-flash-latest`), especialista em caligrafia cursiva histórica em português (HTR).
+- **Estruturação de Grafo (DeepSeek LLM)**: O texto lido pelo Gemini é repassado ao `DeepSeekService` para extração exaustiva e estruturação de entidades e relações em JSON.
 - Retorno estruturado contendo:
-  - Transcrição do texto da região.
+  - Transcrição do texto da região (via Gemini).
   - Lista de Entidades encontradas (`name`, `type`, `attributes`).
   - Lista de Relações encontradas (`source`, `target`, `relationship_type`, `confidence`).
 

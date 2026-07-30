@@ -30,9 +30,11 @@ A **Spec 7** cria o **Workspace Interativo de Transcrição Histórica**, oferec
 - Botões na barra de ferramentas da imagem: `Girar 90° Horário`, `Girar 90° Anti-horário`, `Girar 180°`.
 - Ao girar a página, a imagem da página é fisicamente rotacionada no servidor, salva a nova orientação e dispara um re-OCR automático na página com o texto na orientação correta.
 
-### RF-3: Seleção e Recorte Interativo por Região (Crop Tool)
+### RF-3: Seleção e Recorte Interativo por Região (Crop Tool) & Arquitetura Híbrida de IA
 - No canvas/container da página, o usuário pode clicar e arrastar para desenhar um retângulo de seleção sobre qualquer trecho manuscrito ou coluna de tabela.
-- Ao clicar em **"Extrair Região Selecionada (IA)"**, o backend recebe as coordenadas `[x, y, largura, altura]`, gera o recorte da área, envia à IA para leitura HTR (Handwritten Text Recognition) e insere o resultado no editor da direita.
+- **Motor Multimodal Gemini Vision (`gemini-flash-latest`)**: Utilizado como Nível 1 para leitura paleográfica (HTR) do recorte em Base64, superando limitações de OCR convencional em manuscritos antigos.
+- **Motor DeepSeek (`deepseek-chat`)**: Utilizado como Nível 2 / NLP para estruturação de grafo e extração de entidades do texto lido pelo Gemini.
+- Ao clicar em **"Extrair Região Selecionada (IA)"**, o backend recebe as coordenadas `[x, y, largura, altura]`, gera o recorte da área, envia ao Gemini Vision e insere a transcrição no editor.
 
 ### RF-4: Editor de Transcrição Paginado Lado a Lado
 - O workspace exibe em tela dividida (Visualizador de Imagem à esquerda, Editor de Texto à direita).
@@ -41,10 +43,27 @@ A **Spec 7** cria o **Workspace Interativo de Transcrição Histórica**, oferec
 
 ---
 
+## Requisitos de Infraestrutura & Dependências de Sistema (Windows e VPS Ubuntu)
+
+Para que a renderização de páginas PDF, rotação e OCR local funcionem sem exceções no PHP, os seguintes binários devem estar presentes:
+
+- **PDF a JPEG / Renderização de Páginas**: Ghostscript (`gswin64c` no Windows / `ghostscript` no Linux).
+- **Extração de Texto Nativo em PDF**: `Smalot\PdfParser` (PHP nativo via Composer) e `Poppler` (`pdftotext` / `poppler-utils`).
+- **OCR Local de Fallback**: Tesseract OCR com dados de idioma em português (`tesseract-ocr-por`).
+
+### Instalação no VPS Linux Ubuntu (Produção):
+```bash
+sudo apt update
+sudo apt install -y ghostscript poppler-utils tesseract-ocr tesseract-ocr-por php-gd php-curl php-pgsql
+```
+
+---
+
 ## Critérios de Aceite
 
 1. O workspace em `/documentos/{id}/revisar` carrega o visualizador de imagem da página e o editor de transcrição lado a lado.
 2. O recurso de rotação altera a orientação física da imagem da página e atualiza a exibição.
-3. A ferramenta de recorte permite desenhar um retângulo sobre a imagem, enviar a área selecionada para a IA e receber a transcrição manuscrita/tabelada no editor.
+3. A ferramenta de recorte permite desenhar um retângulo sobre a imagem, enviar a área selecionada para a IA (Gemini Vision) e receber a transcrição manuscrita/tabelada no editor.
 4. Alterações salvas no editor atualizam o repositório do documento no PostgreSQL sem perdas.
 5. Todos os scripts e estilos são locais (zero CDN).
+
