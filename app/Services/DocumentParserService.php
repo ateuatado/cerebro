@@ -2,136 +2,93 @@
 
 namespace App\Services;
 
-use Smalot\PdfParser\Parser as PdfParser;
+use App\Models\EntityModel;
 
 /**
- * DocumentParserService — Extrai texto legível de múltiplos formatos: TXT, PDF, JPG, JPEG, PNG, WEBP, BMP.
- * Suporta OCR paginado, rotação física de imagem via PHP GD e recorte de região para HTR com IA.
+ * DocumentParserService — Leitura e Transcrição Técnica de Arquivos
+ * Gerencia a conversão de PDF para imagens paginadas, rotação, recorte regional e OCR local.
  */
 class DocumentParserService
 {
-    private string $ocrApiKey;
+    private EntityModel $entityModel;
 
     public function __construct()
     {
-        $this->ocrApiKey = getenv('OCR_SPACE_API_KEY') ?: 'K88673738888957';
-
-        if (empty($this->ocrApiKey) && file_exists(ROOTPATH . '.env')) {
-            $lines = file(ROOTPATH . '.env');
-            foreach ($lines as $line) {
-                if (strpos(trim($line), 'OCR_SPACE_API_KEY') === 0) {
-                    $parts = explode('=', $line, 2);
-                    $this->ocrApiKey = trim($parts[1] ?? '');
-                    break;
-                }
-            }
-        }
-
-        if (empty($this->ocrApiKey)) {
-            $this->ocrApiKey = 'K88673738888957';
-        }
+        $this->entityModel = new EntityModel();
     }
 
     /**
-     * Extrai o conteúdo textual a partir do caminho do arquivo e extensão.
+     * Executa OCR usando o Tesseract nativo ou extração fallback
      */
-    public function parseFile(string $filePath, string $extension): array
+    public function performOcr(string $filePath, string $extension): string
     {
+        $filePath = str_replace('\\', '/', $filePath);
         if (!file_exists($filePath)) {
-            throw new \InvalidArgumentException("Arquivo não encontrado: {$filePath}");
+            return '';
         }
 
-        $extension = strtolower($extension);
+        // Executar Tesseract OCR se disponível no sistema
+        $tesseractCmd = "tesseract " . escapeshellarg($filePath) . " stdout -l por 2>&1";
+        exec($tesseractCmd, $outputLines, $returnVar);
 
-        // 1. Arquivos de Texto Nativos (.txt, .md, .json, .csv, .log)
-        if (in_array($extension, ['txt', 'md', 'json', 'csv', 'log'])) {
-            $content = file_get_contents($filePath);
-            return [
-                'text'     => $content ?: '',
-                'is_image' => false,
-                'mime'     => 'text/plain',
-            ];
-        }
-
-        // 2. Arquivos PDF (.pdf)
-        if ($extension === 'pdf') {
-            try {
-                $parser = new PdfParser();
-                $pdf    = $parser->parseFile($filePath);
-                $text   = trim($pdf->getText());
-
-                // Se o PDF tiver camada de texto legível nativa
-                if (!empty($text) && strlen($text) > 30) {
-                    return [
-                        'text'     => $text,
-                        'is_image' => false,
-                        'mime'     => 'application/pdf',
-                    ];
-                }
-
-                // Se for PDF escaneado (sem texto nativo), usa OCR por páginas
-                $ocrText = $this->performPdfPageOcr($filePath);
-                return [
-                    'text'     => !empty(trim($ocrText)) ? $ocrText : "[PDF Escaneado sem texto - " . basename($filePath) . "]",
-                    'is_image' => false,
-                    'mime'     => 'application/pdf',
-                ];
-
-            } catch (\Exception $e) {
-                $ocrText = $this->performPdfPageOcr($filePath);
-                return [
-                    'text'     => !empty(trim($ocrText)) ? $ocrText : "[PDF Importado - " . basename($filePath) . "]",
-                    'is_image' => false,
-                    'mime'     => 'application/pdf',
-                ];
+        if ($returnVar === 0 && !empty($outputLines)) {
+            $extractedText = trim(implode("\n", $outputLines));
+            if (!empty($extractedText)) {
+                return $extractedText;
             }
         }
 
-        // 3. Imagens (.jpg, .jpeg, .png, .webp, .bmp)
+        // Fallback via script Python com pytesseract ou pdfplumber se for PDF
         if (in_array($extension, ['jpg', 'jpeg', 'png', 'webp', 'bmp'])) {
-            $ocrText  = $this->performOcr($filePath, $extension);
-            $mimeType = $this->getMimeType($extension);
+            $pyCode = <<<PYTHON
+import os, sys
+try:
+    from PIL import Image
+    import pytesseract
+    text = pytesseract.image_to_string(Image.open("{$filePath}"), lang='por')
+    print(text)
+except Exception as e:
+    print("")
+PYTHON;
+            $tmpPy = WRITEPATH . 'uploads/ocr_tmp_' . uniqid() . '.py';
+            file_put_contents($tmpPy, $pyCode);
+            exec("python " . escapeshellarg($tmpPy) . " 2>&1", $pyOut, $pyRet);
+            @unlink($tmpPy);
 
-            $finalText = !empty(trim($ocrText))
-                ? "Transcrição OCR da imagem (" . basename($filePath) . "):\n" . $ocrText
-                : "[Imagem de Documento: " . basename($filePath) . "]";
-
-            return [
-                'text'     => $finalText,
-                'is_image' => true,
-                'mime'     => $mimeType,
-            ];
+            $pyText = trim(implode("\n", $pyOut));
+            if (!empty($pyText) && strpos($pyText, 'Error') === false) {
+                return $pyText;
+            }
         }
 
-        // Formato não reconhecido
-        return [
-            'text'     => file_get_contents($filePath) ?: '',
-            'is_image' => false,
-            'mime'     => 'application/octet-stream',
-        ];
+        return "[PDF Escaneado sem texto - " . basename($filePath) . "]";
     }
 
     /**
-     * Renderiza as páginas de um PDF em arquivos JPEG na pasta de cache do documento.
-     * Retorna o total de páginas e os caminhos das imagens.
+     * Renderiza as páginas de um PDF em arquivos JPEG na pasta de cache do documento
      */
     public function renderPdfPagesToCache(string $pdfPath, string $cacheDir): array
     {
-        if (!is_dir($cacheDir)) {
-            mkdir($cacheDir, 0755, true);
-        }
-
-        $existingPages = glob($cacheDir . '/page_*.jpg');
-        if (!empty($existingPages)) {
-            sort($existingPages, SORT_NATURAL);
-            return [
-                'totalPages' => count($existingPages),
-                'pages'      => $existingPages,
-            ];
-        }
-
         $pdfPath  = str_replace('\\', '/', $pdfPath);
         $cacheDir = str_replace('\\', '/', $cacheDir);
+
+        if (!file_exists($pdfPath)) {
+            return ['totalPages' => 0, 'pages' => []];
+        }
+
+        if (!is_dir($cacheDir)) {
+            mkdir($cacheDir, 0777, true);
+        }
+
+        // Se já houver páginas renderizadas no cache, reutilizar
+        $existing = glob($cacheDir . '/page_*.jpg');
+        if (!empty($existing)) {
+            sort($existing, SORT_NATURAL);
+            return [
+                'totalPages' => count($existing),
+                'pages'      => $existing,
+            ];
+        }
 
         // Script Python inline com fitz (PyMuPDF) para renderização a 150 DPI
         $pyCode = <<<PYTHON
@@ -160,39 +117,70 @@ PYTHON;
     }
 
     /**
-     * Rotaciona uma imagem física (JPEG/PNG) em um determinado ângulo (ex: 90, 180, 270 graus) usando PHP GD.
+     * Rotaciona uma imagem física (JPEG/PNG) em um determinado ângulo (ex: 90, 180, 270 graus).
+     * Usa o motor Python PIL (infalível em qualquer tamanho de imagem) com fallback em PHP GD.
      */
     public function rotateImageFile(string $imgPath, int $degrees): bool
     {
-        if (!file_exists($imgPath) || !function_exists('imagerotate')) {
+        $imgPath = str_replace('\\', '/', $imgPath);
+        if (!file_exists($imgPath)) {
             return false;
         }
 
-        $info = getimagesize($imgPath);
-        if (!$info) return false;
+        // 1. Rotação via Python PIL (com expand=True para manter a proporção completa sem cortes)
+        $pyCode = <<<PYTHON
+import os
+from PIL import Image
+try:
+    p = "{$imgPath}"
+    img = Image.open(p)
+    rotated = img.rotate(-{$degrees}, expand=True)
+    rotated.save(p, quality=95)
+    print("SUCCESS")
+except Exception as e:
+    print(f"ERROR: {e}")
+PYTHON;
 
-        $mime = $info['mime'];
-        $src  = match ($mime) {
-            'image/jpeg' => @imagecreatefromjpeg($imgPath),
-            'image/png'  => @imagecreatefrompng($imgPath),
-            'image/webp' => @imagecreatefromwebp($imgPath),
-            default      => null,
-        };
+        $tmpDir = dirname($imgPath);
+        $scriptPath = $tmpDir . '/rotate_' . uniqid() . '.py';
+        file_put_contents($scriptPath, $pyCode);
 
-        if (!$src) return false;
+        exec("python " . escapeshellarg($scriptPath) . " 2>&1", $out, $ret);
+        @unlink($scriptPath);
 
-        // PHP imagerotate rotaciona no sentido anti-horário; invertemos para bater com o padrão relógio
-        $angle   = (360 - ($degrees % 360)) % 360;
-        $rotated = imagerotate($src, $angle, 0);
-
-        if ($rotated) {
-            imagejpeg($rotated, $imgPath, 92);
-            imagedestroy($src);
-            imagedestroy($rotated);
+        $outputStr = implode("\n", $out);
+        if (strpos($outputStr, 'SUCCESS') !== false) {
             return true;
         }
 
-        imagedestroy($src);
+        // 2. Fallback via PHP GD com fundo branco
+        if (function_exists('imagerotate')) {
+            $info = @getimagesize($imgPath);
+            if ($info) {
+                $mime = $info['mime'];
+                $src  = match ($mime) {
+                    'image/jpeg' => @imagecreatefromjpeg($imgPath),
+                    'image/png'  => @imagecreatefrompng($imgPath),
+                    'image/webp' => @imagecreatefromwebp($imgPath),
+                    default      => null,
+                };
+
+                if ($src) {
+                    $angle   = (360 - ($degrees % 360)) % 360;
+                    $bg      = imagecolorallocate($src, 255, 255, 255);
+                    $rotated = imagerotate($src, $angle, $bg);
+
+                    if ($rotated) {
+                        imagejpeg($rotated, $imgPath, 92);
+                        imagedestroy($src);
+                        imagedestroy($rotated);
+                        return true;
+                    }
+                    imagedestroy($src);
+                }
+            }
+        }
+
         return false;
     }
 
@@ -202,121 +190,88 @@ PYTHON;
      */
     public function cropImageRegion(string $imgPath, int $x, int $y, int $w, int $h, int $canvasW = 0, int $canvasH = 0): ?string
     {
-        if (!file_exists($imgPath) || !function_exists('imagecrop')) {
+        $imgPath = str_replace('\\', '/', $imgPath);
+        if (!file_exists($imgPath)) {
             return null;
         }
 
-        $info = getimagesize($imgPath);
+        // Se dimensões do canvas forem passadas, calcular escala proporcional
+        $info = @getimagesize($imgPath);
         if (!$info) return null;
 
         $origW = $info[0];
         $origH = $info[1];
 
-        // Se o canvas do navegador enviou dimensões escaladas, calcula a proporção real
-        if ($canvasW > 0 && $canvasH > 0) {
-            $scaleX = $origW / $canvasW;
-            $scaleY = $origH / $canvasH;
+        $scaleX = ($canvasW > 0) ? ($origW / $canvasW) : 1;
+        $scaleY = ($canvasH > 0) ? ($origH / $canvasH) : 1;
 
-            $x = (int) round($x * $scaleX);
-            $y = (int) round($y * $scaleY);
-            $w = (int) round($w * $scaleX);
-            $h = (int) round($h * $scaleY);
+        $realX = (int) round($x * $scaleX);
+        $realY = (int) round($y * $scaleY);
+        $realW = (int) round($w * $scaleX);
+        $realH = (int) round($h * $scaleY);
+
+        // Limitar dentro das bordas da imagem original
+        $realX = max(0, min($realX, $origW - 1));
+        $realY = max(0, min($realY, $origH - 1));
+        $realW = min($realW, $origW - $realX);
+        $realH = min($realH, $origH - $realY);
+
+        if ($realW <= 5 || $realH <= 5) {
+            return null;
         }
 
-        // Limita os limites dentro da imagem original
-        $x = max(0, min($x, $origW - 10));
-        $y = max(0, min($y, $origH - 10));
-        $w = max(10, min($w, $origW - $x));
-        $h = max(10, min($h, $origH - $y));
+        // 1. Recorte via Python PIL
+        $cropFile = WRITEPATH . 'uploads/crop_' . uniqid() . '.jpg';
+        $cropFile = str_replace('\\', '/', $cropFile);
 
-        $src = @imagecreatefromjpeg($imgPath) ?: @imagecreatefrompng($imgPath);
-        if (!$src) return null;
+        $pyCode = <<<PYTHON
+import os
+from PIL import Image
+try:
+    src_p = "{$imgPath}"
+    dst_p = "{$cropFile}"
+    img = Image.open(src_p)
+    # PIL crop: (left, upper, right, lower)
+    box = ({$realX}, {$realY}, {$realX} + {$realW}, {$realY} + {$realH})
+    cropped = img.crop(box)
+    cropped.save(dst_p, quality=95)
+    print("SUCCESS")
+except Exception as e:
+    print(f"ERROR: {e}")
+PYTHON;
 
-        $cropRect = ['x' => $x, 'y' => $y, 'width' => $w, 'height' => $h];
-        $cropped  = imagecrop($src, $cropRect);
+        $tmpPy = WRITEPATH . 'uploads/py_crop_' . uniqid() . '.py';
+        file_put_contents($tmpPy, $pyCode);
 
-        if ($cropped) {
-            $tempCropPath = WRITEPATH . 'uploads/temp_crop_' . time() . '_' . rand(100, 999) . '.jpg';
-            imagejpeg($cropped, $tempCropPath, 95);
-            imagedestroy($src);
-            imagedestroy($cropped);
-            return $tempCropPath;
+        exec("python " . escapeshellarg($tmpPy) . " 2>&1", $out, $ret);
+        @unlink($tmpPy);
+
+        if (file_exists($cropFile) && filesize($cropFile) > 0) {
+            return $cropFile;
         }
 
-        imagedestroy($src);
+        // 2. Fallback via PHP GD
+        if (function_exists('imagecrop')) {
+            $mime = $info['mime'];
+            $src  = match ($mime) {
+                'image/jpeg' => @imagecreatefromjpeg($imgPath),
+                'image/png'  => @imagecreatefrompng($imgPath),
+                'image/webp' => @imagecreatefromwebp($imgPath),
+                default      => null,
+            };
+
+            if ($src) {
+                $cropped = imagecrop($src, ['x' => $realX, 'y' => $realY, 'width' => $realW, 'height' => $realH]);
+                if ($cropped) {
+                    imagejpeg($cropped, $cropFile, 92);
+                    imagedestroy($src);
+                    imagedestroy($cropped);
+                    return $cropFile;
+                }
+                imagedestroy($src);
+            }
+        }
+
         return null;
-    }
-
-    /**
-     * Submete uma imagem (ou recorte) para OCR e HTR via OCR.Space
-     */
-    public function performOcr(string $filePath, string $extension = 'jpg'): string
-    {
-        try {
-            $ch = curl_init('https://api.ocr.space/parse/image');
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, ['apikey: ' . $this->ocrApiKey]);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, [
-                'file'      => new \CURLFile($filePath),
-                'language'  => 'por',
-                'isTable'   => 'true',
-                'OCREngine' => '2',
-            ]);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 60);
-
-            $response = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
-
-            if ($httpCode === 200 && !empty($response)) {
-                $json = json_decode($response, true);
-                if (isset($json['ParsedResults'][0]['ParsedText'])) {
-                    return trim($json['ParsedResults'][0]['ParsedText']);
-                }
-            }
-        } catch (\Exception $e) {
-            // Falha graciosa
-        }
-
-        return '';
-    }
-
-    private function performPdfPageOcr(string $pdfPath): string
-    {
-        $tempDir = WRITEPATH . 'uploads/temp_pdf_ocr_' . time() . '/';
-        $res     = $this->renderPdfPagesToCache($pdfPath, $tempDir);
-        $pageFiles = $res['pages'] ?? [];
-
-        $pageTexts = [];
-        if (!empty($pageFiles)) {
-            foreach ($pageFiles as $pIdx => $imgPath) {
-                $pText = $this->performOcr($imgPath, 'jpg');
-                if (!empty($pText)) {
-                    $pageTexts[] = "--- PÁGINA " . ($pIdx + 1) . " ---\n" . $pText;
-                }
-                @unlink($imgPath);
-            }
-        } else {
-            $directText = $this->performOcr($pdfPath, 'pdf');
-            if (!empty($directText)) {
-                $pageTexts[] = $directText;
-            }
-        }
-
-        @rmdir($tempDir);
-        return implode("\n\n", $pageTexts);
-    }
-
-    private function getMimeType(string $ext): string
-    {
-        return match ($ext) {
-            'jpg', 'jpeg' => 'image/jpeg',
-            'png'         => 'image/png',
-            'webp'        => 'image/webp',
-            'bmp'         => 'image/bmp',
-            default       => 'image/jpeg',
-        };
     }
 }
