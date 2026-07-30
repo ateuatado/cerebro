@@ -1,24 +1,33 @@
-<?= $this->extend('layout/main') ?>
+<?php
+/**
+ * Cerebro — Views/documents/pending.php
+ * Repositório e Fila de Documentos Pendentes de Extração (Spec 6)
+ */
+$auth = new \App\Services\AuthService();
+$role = $auth->currentUser()['role'] ?? 'colaborador';
 
-<?= $this->section('content') ?>
-<div class="container-fluid py-4">
+ob_start();
+?>
+
+<div class="fade-in-up">
     <!-- Cabeçalho -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="cbr-page-header">
         <div>
-            <h1 class="h3 font-weight-bold text-light mb-1">
-                <i class="bi bi-journal-text text-warning me-2"></i> Repositório de Documentos Pendentes de Extração
+            <h1 class="cbr-page-title">
+                <i class="bi bi-journal-text" style="color:var(--cbr-warning)"></i>
+                Repositório de Documentos Pendentes
             </h1>
-            <p class="text-muted mb-0">
+            <p class="cbr-page-subtitle">
                 Documentos com transcrição/OCR salvos no repositório aguardando extração por IA ou reprocessamento manual
             </p>
         </div>
-        <div>
-            <a href="<?= base_url('documentos/lote') ?>" class="btn btn-outline-secondary me-2">
-                <i class="bi bi-upload me-1"></i> Fazer Novo Upload
+        <div class="d-flex gap-2">
+            <a href="<?= base_url('documentos/lote') ?>" class="btn btn-outline-secondary d-flex align-items-center gap-2">
+                <i class="bi bi-upload"></i> Fazer Novo Upload
             </a>
             <?php if (!empty($pendingDocs)) : ?>
-                <button id="btnProcessAll" class="btn btn-warning text-dark font-weight-bold shadow-sm">
-                    <i class="bi bi-cpu-fill me-1"></i> Processar Todos por IA (<?= $totalPending ?>)
+                <button id="btnProcessAll" class="btn btn-warning text-dark font-weight-bold shadow-sm d-flex align-items-center gap-2">
+                    <i class="bi bi-cpu-fill"></i> Processar Todos por IA (<?= $totalPending ?>)
                 </button>
             <?php endif; ?>
         </div>
@@ -27,52 +36,46 @@
     <!-- Cards de Métricas -->
     <div class="row g-3 mb-4">
         <div class="col-md-6 col-lg-3">
-            <div class="card bg-dark border-secondary shadow-sm text-light">
-                <div class="card-body d-flex align-items-center">
-                    <div class="rounded-circle bg-warning bg-opacity-10 p-3 me-3 text-warning">
-                        <i class="bi bi-hourglass-split display-6"></i>
-                    </div>
-                    <div>
-                        <div class="text-muted small">Documentos Pendentes</div>
-                        <div class="h3 font-weight-bold mb-0 text-warning"><?= number_format($totalPending) ?></div>
-                    </div>
+            <div class="cbr-card text-light d-flex align-items-center">
+                <div class="rounded-circle p-3 me-3 text-warning" style="background: rgba(245, 158, 11, 0.15);">
+                    <i class="bi bi-hourglass-split display-6"></i>
+                </div>
+                <div>
+                    <div class="text-subtle small">Documentos Pendentes</div>
+                    <div class="h3 font-weight-bold mb-0 text-warning"><?= number_format($totalPending) ?></div>
                 </div>
             </div>
         </div>
         <div class="col-md-6 col-lg-3">
-            <div class="card bg-dark border-secondary shadow-sm text-light">
-                <div class="card-body d-flex align-items-center">
-                    <div class="rounded-circle bg-info bg-opacity-10 p-3 me-3 text-info">
-                        <i class="bi bi-file-earmark-code display-6"></i>
-                    </div>
-                    <div>
-                        <div class="text-muted small">Texto Transcrito Salvo</div>
-                        <div class="h3 font-weight-bold mb-0 text-info"><?= number_format($totalChars) ?> <span class="fs-6 font-weight-normal text-muted">chars</span></div>
-                    </div>
+            <div class="cbr-card text-light d-flex align-items-center">
+                <div class="rounded-circle p-3 me-3 text-info" style="background: rgba(59, 130, 246, 0.15);">
+                    <i class="bi bi-file-earmark-code display-6"></i>
+                </div>
+                <div>
+                    <div class="text-subtle small">Texto Transcrito Salvo</div>
+                    <div class="h3 font-weight-bold mb-0 text-info"><?= number_format($totalChars) ?> <span class="fs-6 font-weight-normal text-muted">chars</span></div>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Barra de Progresso Global -->
-    <div id="batchProgressContainer" class="card bg-dark border-secondary mb-4 d-none">
-        <div class="card-body">
-            <div class="d-flex justify-content-between mb-2">
-                <span class="text-light font-weight-bold" id="batchProgressStatus">Processando extrações em lote...</span>
-                <span class="text-warning font-weight-bold" id="batchProgressPercent">0%</span>
-            </div>
-            <div class="progress bg-secondary" style="height: 12px;">
-                <div id="batchProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-warning" role="progressbar" style="width: 0%"></div>
-            </div>
+    <div id="batchProgressContainer" class="cbr-card mb-4 d-none">
+        <div class="d-flex justify-content-between mb-2">
+            <span class="text-light font-weight-bold" id="batchProgressStatus">Processando extrações em lote...</span>
+            <span class="text-warning font-weight-bold" id="batchProgressPercent">0%</span>
+        </div>
+        <div class="progress" style="height: 12px; background: var(--cbr-surface-2);">
+            <div id="batchProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-warning" role="progressbar" style="width: 0%"></div>
         </div>
     </div>
 
     <!-- Lista de Documentos Pendentes -->
-    <div class="card bg-dark border-secondary shadow-sm">
-        <div class="card-header border-secondary bg-dark bg-opacity-50 py-3 d-flex justify-content-between align-items-center">
-            <h5 class="card-title text-light mb-0">
+    <div class="cbr-card p-0 overflow-hidden">
+        <div style="padding:.875rem 1.125rem;background:var(--cbr-surface-2);border-bottom:1px solid var(--cbr-border);display:flex;align-items:center;justify-content:space-between">
+            <h3 style="font-size:.9375rem;font-weight:600;color:var(--cbr-text);margin:0">
                 <i class="bi bi-list-task me-2 text-warning"></i> Fila de Transcrições no Repositório
-            </h5>
+            </h3>
             <span class="badge bg-secondary"><?= count($pendingDocs) ?> itens</span>
         </div>
         <div class="card-body p-0">
@@ -95,7 +98,7 @@
                                 <th>Formato</th>
                                 <th>Texto Transcrito</th>
                                 <th>Status</th>
-                                <th class="text-end" style="width: 280px;">Ações</th>
+                                <th class="text-end" style="width: 320px;">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -129,14 +132,12 @@
                                         <?php endif; ?>
                                     </td>
                                     <td class="text-end">
-                                        <!-- Botão Ver/Editar Texto Bruto -->
                                         <button class="btn btn-sm btn-outline-info me-1 btn-view-text" 
                                                 data-id="<?= $doc['id'] ?>"
                                                 data-name="<?= esc($doc['name']) ?>"
                                                 data-text="<?= esc($doc['conteudo_transcrito']) ?>">
                                             <i class="bi bi-pencil-square me-1"></i> Ler/Editar Texto
                                         </button>
-                                        <!-- Botão Extrair por IA -->
                                         <button class="btn btn-sm btn-warning text-dark font-weight-bold btn-extract-single" 
                                                 data-id="<?= $doc['id'] ?>">
                                             <i class="bi bi-cpu me-1"></i> Extrair por IA
@@ -185,8 +186,21 @@
     </div>
 </div>
 
-<!-- Carregar CSS/JS Locais -->
-<link rel="stylesheet" href="<?= base_url('assets/css/pending.css') ?>">
-<script src="<?= base_url('assets/js/pending.js') ?>"></script>
+<script>
+    const BASE_URL = '<?= base_url() ?>/';
+</script>
 
-<?= $this->endSection() ?>
+<?php
+$content = ob_get_clean();
+echo view('layout/base', [
+    'title'      => 'Documentos Pendentes de Extração',
+    'breadcrumbs'=> [
+        ['label'=>'Dashboard',  'url'=>base_url('/')],
+        ['label'=>'Documentos', 'url'=>base_url('documentos')],
+        ['label'=>'Pendentes de Extração', 'url'=>''],
+    ],
+    'content'    => $content,
+    'pageCss'    => ['entities.css', 'dashboard.css', 'pending.css'],
+    'pageJs'     => ['pending.js'],
+]);
+?>

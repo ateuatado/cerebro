@@ -99,6 +99,13 @@ $pendingCount = 0; // TODO: injetar via controller
                 Documentos
             </a>
 
+            <a href="<?= base_url('documentos/pendentes') ?>"
+               class="cbr-nav-link"
+               id="nav-pending-documents">
+                <i class="bi bi-journal-text" aria-hidden="true"></i>
+                Pendentes de Extração
+            </a>
+
             <a href="<?= base_url('documentos/lote') ?>"
                class="cbr-nav-link"
                id="nav-batch-documents">
