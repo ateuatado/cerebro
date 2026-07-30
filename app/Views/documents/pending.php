@@ -137,13 +137,17 @@ ob_start();
                                         <?php endif; ?>
                                     </td>
                                     <td class="text-end">
+                                        <a href="<?= base_url('documentos/' . $doc['id'] . '/revisar') ?>" 
+                                           class="btn btn-sm btn-warning text-dark font-weight-bold me-1">
+                                            <i class="bi bi-crop me-1"></i> Workspace & Crop (IA)
+                                        </a>
                                         <button class="btn btn-sm btn-outline-info me-1 btn-view-text" 
                                                 data-id="<?= $doc['id'] ?>"
                                                 data-name="<?= esc($doc['name']) ?>"
                                                 data-text="<?= esc($doc['conteudo_transcrito']) ?>">
                                             <i class="bi bi-pencil-square me-1"></i> Ler/Editar
                                         </button>
-                                        <button class="btn btn-sm btn-warning text-dark font-weight-bold me-1 btn-extract-single" 
+                                        <button class="btn btn-sm btn-outline-warning text-warning me-1 btn-extract-single" 
                                                 data-id="<?= $doc['id'] ?>">
                                             <i class="bi bi-cpu me-1"></i> Extrair por IA
                                         </button>

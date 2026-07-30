@@ -90,10 +90,10 @@ ob_start();
                 </button>
             </form>
             <a href="<?= base_url('documentos/' . $entity['id'] . '/revisar') ?>"
-               class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1"
+               class="btn btn-warning btn-sm d-flex align-items-center gap-1 text-dark fw-bold"
                id="btn-ai-review">
-                <i class="bi bi-eye" aria-hidden="true"></i>
-                <span>Ver Revisão IA</span>
+                <i class="bi bi-crop" aria-hidden="true"></i>
+                <span>✂️ Workspace de Transcrição & Crop IA</span>
             </a>
             <?php endif; ?>
 
@@ -195,11 +195,17 @@ ob_start();
                     Arquivo Original (Fonte Primária)
                 </h2>
                 <?php if ($hasFile): ?>
-                <a href="<?= base_url('documentos/' . $entity['id'] . '/arquivo') ?>"
-                   target="_blank"
-                   class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1">
-                    <i class="bi bi-box-arrow-up-right"></i> Abrir em Tela Cheia
-                </a>
+                <div class="d-flex gap-2">
+                    <a href="<?= base_url('documentos/' . $entity['id'] . '/revisar') ?>"
+                       class="btn btn-sm btn-warning d-flex align-items-center gap-1 text-dark fw-bold">
+                        <i class="bi bi-crop me-1"></i> Workspace de Transcrição & Crop IA
+                    </a>
+                    <a href="<?= base_url('documentos/' . $entity['id'] . '/arquivo') ?>"
+                       target="_blank"
+                       class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1">
+                        <i class="bi bi-box-arrow-up-right"></i> Abrir em Tela Cheia
+                    </a>
+                </div>
                 <?php endif; ?>
             </div>
             <div class="cbr-detail-section-body" style="text-align:center;background:var(--cbr-surface-2)">
