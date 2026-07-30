@@ -4,6 +4,7 @@ namespace App\Services;
 
 /**
  * DeepSeekService — Integração com a API do DeepSeek para extração de conhecimento histórico
+ * Suporta análise de imagens (manuscritos) via DeepSeek Vision (deepseek-chat com image_url)
  */
 class DeepSeekService
 {
@@ -26,6 +27,130 @@ class DeepSeekService
                 }
             }
         }
+    }
+
+    /**
+     * Envia requisição para a API DeepSeek
+     */
+    private function callApi(array $messages): array
+    {
+        if (empty($this->apiKey)) {
+            throw new \RuntimeException('A chave DEEPSEEK_API_KEY não está configurada no arquivo .env.');
+        }
+
+        $data = [
+            'model' => $this->model,
+            'messages' => $messages,
+            'temperature' => 0.1,
+            'response_format' => ['type' => 'json_object']
+        ];
+
+        $ch = \curl_init($this->apiUrl);
+        \curl_setopt($ch, \CURLOPT_RETURNTRANSFER, true);
+        \curl_setopt($ch, \CURLOPT_POST, true);
+        \curl_setopt($ch, \CURLOPT_HTTPHEADER, [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $this->apiKey
+        ]);
+        \curl_setopt($ch, \CURLOPT_POSTFIELDS, \json_encode($data, \JSON_UNESCAPED_UNICODE));
+        \curl_setopt($ch, \CURLOPT_SSL_VERIFYPEER, false);
+        \curl_setopt($ch, \CURLOPT_TIMEOUT, 90);
+
+        $response = \curl_exec($ch);
+        $httpCode = \curl_getinfo($ch, \CURLINFO_HTTP_CODE);
+        $error    = \curl_error($ch);
+        \curl_close($ch);
+
+        if ($error) {
+            throw new \RuntimeException('Erro na chamada da API DeepSeek: ' . $error);
+        }
+
+        if ($httpCode !== 200) {
+            throw new \RuntimeException('A API DeepSeek retornou status ' . $httpCode . ': ' . \mb_substr($response, 0, 500));
+        }
+
+        $json = \json_decode($response, true);
+        $content = $json['choices'][0]['message']['content'] ?? '';
+
+        if (empty($content)) {
+            throw new \RuntimeException('A resposta da API DeepSeek veio vazia.');
+        }
+
+        $cleanedContent = \preg_replace('/^```json\s*|\s*```$/i', '', \trim($content));
+        $extractedData  = \json_decode($cleanedContent, true);
+
+        if (\json_last_error() !== \JSON_ERROR_NONE) {
+            throw new \RuntimeException('Falha ao decodificar JSON retornado pela IA: ' . \json_last_error_msg());
+        }
+
+        return $extractedData ?: [];
+    }
+
+    /**
+     * Lê uma imagem de recorte (Base64) diretamente via DeepSeek Vision
+     * e extrai entidades e relações do manuscrito.
+     * 
+     * @param string $docTitle   Título do documento
+     * @param string $imageBase64 Dados da imagem em Base64 (com prefixo data:image/...)
+     * @return array ['transcription', 'entities', 'relationships']
+     */
+    public function extractFromCropImage(string $docTitle, string $imageBase64): array
+    {
+        $systemPrompt = <<<PROMPT
+Você é um historiador e paleógrafo especialista em leitura de documentos manuscritos cursivos do Brasil das décadas de 1920 e 1930 (boletins de batalhões militares, registros de prisões, jornais e processos judiciais).
+
+A imagem a seguir é um recorte de um documento manuscrito em caligrafia cursiva antiga, com possíveis abreviações da época (ex: "Ten." = Tenente, "Sgt." = Sargento, "Alferes", "2º Batalhão", "Mappa diario", "preso_em").
+
+LEIA DIRETAMENTE A IMAGEM e:
+1. "transcription": Faça a transcrição completa e fiel do texto manuscrito visível.
+2. "entities": Extraia todas as pessoas (com patentes/cargos em atributos), locais, eventos e organizações.
+3. "relationships": Extraia todas as conexões entre essas entidades.
+
+Retorne EXCLUSIVAMENTE um JSON:
+{
+  "transcription": "Texto completo transcrito do manuscrito na imagem...",
+  "entities": [
+    {"name": "Nome", "type": "person|location|event", "attributes": {"cargo": "..."}}
+  ],
+  "relationships": [
+    {
+      "source_name": "Nome Origem",
+      "target_name": "Nome Destino",
+      "relationship_type": "lotado_em",
+      "direction": "directed",
+      "confidence": 0.90,
+      "excerpt": "trecho..."
+    }
+  ]
+}
+PROMPT;
+
+        $messages = [
+            ['role' => 'system', 'content' => $systemPrompt],
+            [
+                'role' => 'user',
+                'content' => [
+                    [
+                        'type' => 'text',
+                        'text' => "Documento: {$docTitle}\n\nTranscreva e extraia entidades/relações deste recorte de manuscrito histórico."
+                    ],
+                    [
+                        'type' => 'image_url',
+                        'image_url' => [
+                            'url' => $imageBase64
+                        ]
+                    ]
+                ]
+            ]
+        ];
+
+        $result = $this->callApi($messages);
+
+        return [
+            'transcription' => $result['transcription'] ?? '',
+            'entities'      => $result['entities'] ?? [],
+            'relationships' => $result['relationships'] ?? [],
+        ];
     }
 
     /**
@@ -68,49 +193,17 @@ PROMPT;
 
         $userPrompt = "Título do Documento: {$docTitle}\n\nTexto Bruto do Recorte:\n{$rawOcrText}";
 
-        $data = [
-            'model' => $this->model,
-            'messages' => [
-                ['role' => 'system', 'content' => $systemPrompt],
-                ['role' => 'user', 'content' => $userPrompt]
-            ],
-            'temperature' => 0.1,
-            'response_format' => ['type' => 'json_object']
+        $messages = [
+            ['role' => 'system', 'content' => $systemPrompt],
+            ['role' => 'user', 'content' => $userPrompt]
         ];
 
-        $ch = curl_init($this->apiUrl);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Content-Type: application/json',
-            'Authorization: Bearer ' . $this->apiKey
-        ]);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 90);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($httpCode !== 200 || empty($response)) {
-            // Retorno de contingência com extração via OCR padrão
-            return [
-                'transcription' => $rawOcrText,
-                'entities'      => [],
-                'relationships' => [],
-            ];
-        }
-
-        $json = json_decode($response, true);
-        $content = $json['choices'][0]['message']['content'] ?? '';
-        $cleanedContent = preg_replace('/^```json\s*|\s*```$/i', '', trim($content));
-        $extractedData  = json_decode($cleanedContent, true) ?: [];
+        $result = $this->callApi($messages);
 
         return [
-            'transcription' => $extractedData['transcription'] ?? $rawOcrText,
-            'entities'      => $extractedData['entities'] ?? [],
-            'relationships' => $extractedData['relationships'] ?? [],
+            'transcription' => $result['transcription'] ?? $rawOcrText,
+            'entities'      => $result['entities'] ?? [],
+            'relationships' => $result['relationships'] ?? [],
         ];
     }
 
@@ -120,22 +213,22 @@ PROMPT;
      */
     public function extractKnowledgeChunked(string $docTitle, string $docText, array $extraAttributes = [], int $chunkSize = 3000): array
     {
-        if (strlen($docText) <= $chunkSize) {
+        if (\strlen($docText) <= $chunkSize) {
             return $this->extractKnowledge($docTitle, $docText, $extraAttributes);
         }
 
-        $lines = explode("\n", $docText);
+        $lines = \explode("\n", $docText);
         $chunks = [];
         $currentChunk = '';
 
         foreach ($lines as $line) {
-            if (strlen($currentChunk) + strlen($line) > $chunkSize && !empty($currentChunk)) {
+            if (\strlen($currentChunk) + \strlen($line) > $chunkSize && !empty($currentChunk)) {
                 $chunks[] = $currentChunk;
                 $currentChunk = '';
             }
             $currentChunk .= $line . "\n";
         }
-        if (!empty(trim($currentChunk))) {
+        if (!empty(\trim($currentChunk))) {
             $chunks[] = $currentChunk;
         }
 
@@ -143,19 +236,19 @@ PROMPT;
         $allRelationships = [];
 
         foreach ($chunks as $index => $chunkText) {
-            $chunkTitle = "{$docTitle} (Parte " . ($index + 1) . " de " . count($chunks) . ")";
+            $chunkTitle = "{$docTitle} (Parte " . ($index + 1) . " de " . \count($chunks) . ")";
             try {
                 $res = $this->extractKnowledge($chunkTitle, $chunkText, $extraAttributes);
 
                 foreach ($res['entities'] as $entity) {
-                    $name = trim($entity['name'] ?? '');
+                    $name = \trim($entity['name'] ?? '');
                     $type = $entity['type'] ?? 'person';
                     if (!empty($name)) {
-                        $key = mb_strtolower($name) . '|' . $type;
+                        $key = \mb_strtolower($name) . '|' . $type;
                         if (!isset($allEntities[$key])) {
                             $allEntities[$key] = $entity;
                         } else {
-                            $allEntities[$key]['attributes'] = array_merge(
+                            $allEntities[$key]['attributes'] = \array_merge(
                                 $allEntities[$key]['attributes'] ?? [],
                                 $entity['attributes'] ?? []
                             );
@@ -173,7 +266,7 @@ PROMPT;
         }
 
         return [
-            'entities'      => array_values($allEntities),
+            'entities'      => \array_values($allEntities),
             'relationships' => $allRelationships,
         ];
     }
@@ -183,10 +276,6 @@ PROMPT;
      */
     public function extractKnowledge(string $docTitle, string $docText, array $extraAttributes = []): array
     {
-        if (empty($this->apiKey)) {
-            throw new \RuntimeException('A chave DEEPSEEK_API_KEY não está configurada no arquivo .env.');
-        }
-
         $systemPrompt = <<<PROMPT
 Você é um historiador especialista em análise exaustiva e de alta densidade de jornais e documentos do Brasil das décadas de 1920 e 1930 (movimento operário, anarquismo, repressão policial, greves, edições de jornais).
 
@@ -228,61 +317,15 @@ PROMPT;
 
         $userPrompt = "Título do Documento: {$docTitle}\n\n";
         if (!empty($extraAttributes)) {
-            $userPrompt .= "Metadados: " . json_encode($extraAttributes, JSON_UNESCAPED_UNICODE) . "\n\n";
+            $userPrompt .= "Metadados: " . \json_encode($extraAttributes, \JSON_UNESCAPED_UNICODE) . "\n\n";
         }
         $userPrompt .= "Conteúdo do Documento:\n" . $docText;
 
-        $data = [
-            'model' => $this->model,
-            'messages' => [
-                ['role' => 'system', 'content' => $systemPrompt],
-                ['role' => 'user', 'content' => $userPrompt]
-            ],
-            'temperature' => 0.1,
-            'response_format' => ['type' => 'json_object']
+        $messages = [
+            ['role' => 'system', 'content' => $systemPrompt],
+            ['role' => 'user', 'content' => $userPrompt]
         ];
 
-        $ch = curl_init($this->apiUrl);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Content-Type: application/json',
-            'Authorization: Bearer ' . $this->apiKey
-        ]);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 90);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error    = curl_error($ch);
-        curl_close($ch);
-
-        if ($error) {
-            throw new \RuntimeException('Erro na chamada da API DeepSeek: ' . $error);
-        }
-
-        if ($httpCode !== 200) {
-            throw new \RuntimeException('A API DeepSeek retornou o status HTTP ' . $httpCode . ': ' . $response);
-        }
-
-        $json = json_decode($response, true);
-        $content = $json['choices'][0]['message']['content'] ?? '';
-
-        if (empty($content)) {
-            throw new \RuntimeException('A resposta da API DeepSeek veio vazia.');
-        }
-
-        $cleanedContent = preg_replace('/^```json\s*|\s*```$/i', '', trim($content));
-        $extractedData  = json_decode($cleanedContent, true);
-
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new \RuntimeException('Falha ao decodificar JSON retornado pela IA: ' . json_last_error_msg());
-        }
-
-        return [
-            'entities'      => $extractedData['entities'] ?? [],
-            'relationships' => $extractedData['relationships'] ?? [],
-        ];
+        return $this->callApi($messages);
     }
 }

@@ -140,7 +140,7 @@ class Toolbar extends BaseConfig
      * @var array<string, string|null>
      */
     public array $disableOnHeaders = [
-        'X-Requested-With' => 'xmlhttprequest', // AJAX requests
+        'X-Requested-With' => null,  // AJAX requests — null = any value accepted
         'HX-Request'       => 'true',           // HTMX requests
         'X-Up-Version'     => null,             // Unpoly partial requests
     ];

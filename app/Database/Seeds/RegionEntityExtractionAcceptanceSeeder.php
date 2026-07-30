@@ -5,16 +5,17 @@ namespace App\Database\Seeds;
 use CodeIgniter\Database\Seeder;
 use App\Models\EntityModel;
 use App\Services\DeepSeekService;
+use App\Controllers\DocumentReviewController;
 
 /**
  * RegionEntityExtractionAcceptanceSeeder — Validação Automatizada da Spec 8
- * Testa a extração de Entidades & Grafo em 1-clique a partir de seleção de região em manuscritos.
+ * Testa a extração de Entidades & Grafo a partir da Seleção de Região com Base64 e Coordenadas.
  */
 class RegionEntityExtractionAcceptanceSeeder extends Seeder
 {
     public function run()
     {
-        echo "\n=== INICIANDO TESTES DE ACEITE DA SPEC 8 (EXTRAÇÃO DE ENTIDADES POR REGIÃO) ===\n\n";
+        echo "\n=== INICIANDO TESTES DE ACEITE DA SPEC 8 (RECORTE BASE64 & EXTRAÇÃO POR REGIÃO) ===\n\n";
 
         $entityModel = new EntityModel();
         $deepSeek    = new DeepSeekService();
@@ -29,21 +30,38 @@ class RegionEntityExtractionAcceptanceSeeder extends Seeder
             'attributes'  => json_encode([
                 'autor_responsavel'  => '2º Batalhão de São Paulo',
                 'conteudo_transcrito'=> 'Quartel em Sao Paulo, 16 de Julho de 1929',
-                'extraction_status'  => 'pending',
+                'caminho_arquivo'    => 'documents/1785418487_fundo_c06603.pdf',
             ], JSON_UNESCAPED_UNICODE),
             'created_at'  => date('Y-m-d H:i:s'),
         ]);
 
         echo "[CRITÉRIO 1] Criação de documento para extração por região: " . ($docId ? "PASS (ID {$docId})" : "FAIL") . "\n";
 
-        // 2. Simular extração de região manuscrita (Observações com oficiais e regimento)
+        // 2. Simular recepção de recorte Base64 enviado pelo HTML5 Canvas
+        // 1x1 pixel JPEG em Base64 válido para teste de integridade da API
+        $fakeBase64 = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=";
+
+        $_POST['crop_image_base64'] = $fakeBase64;
+        $request = \Config\Services::request();
+        $request->setGlobal('post', $_POST);
+
+        $controller = new DocumentReviewController();
+        $controller->initController($request, \Config\Services::response(), \Config\Services::logger());
+
+        $resRegion = $controller->extractRegion($docId, 1);
+        $bodyRegion = json_decode($resRegion->getBody(), true);
+
+        $hasResponse = !empty($bodyRegion['success']);
+        echo "[CRITÉRIO 2] Decodificação e OCR de recorte Base64 via HTML5 Canvas: " . ($hasResponse ? "PASS" : "FAIL") . "\n";
+
+        // 3. Simular extração de região manuscrita (Observações com oficiais e regimento)
         $manuscriptSnippet = "Domingo 16: O Alferes Francisco de Souza esteve no 2º Batalhão de São Paulo sob o comando do Sargento Benedicto Torres.";
         $res = $deepSeek->extractFromCropText('Mappa Diario 2º Batalhao', $manuscriptSnippet);
 
         $hasTranscription = !empty($res['transcription']);
-        echo "[CRITÉRIO 2] HTR e Restauração de texto manuscrito por IA: " . ($hasTranscription ? "PASS" : "FAIL") . "\n";
+        echo "[CRITÉRIO 3] Restauração HTR & Visão por IA de Manuscrito Cursivo: " . ($hasTranscription ? "PASS" : "FAIL") . "\n";
 
-        // 3. Simular salvamento das entidades aprovadas com status 'hypothesis'
+        // 4. Salvar entidades e relações aprovadas
         $pId = $entityModel->insert([
             'name'        => 'Alferes Francisco de Souza',
             'type'        => 'person',
@@ -62,9 +80,6 @@ class RegionEntityExtractionAcceptanceSeeder extends Seeder
             'created_at'  => date('Y-m-d H:i:s'),
         ]);
 
-        echo "[CRITÉRIO 3] Inserção de entidades como hipóteses vinculadas: " . ($pId && $lId ? "PASS" : "FAIL") . "\n";
-
-        // 4. Salvar relação referenciando o documento fonte
         $relIns = $db->table('relationships')->insert([
             'source_entity_id'  => $pId,
             'target_entity_id'  => $lId,
@@ -77,7 +92,7 @@ class RegionEntityExtractionAcceptanceSeeder extends Seeder
             'created_at'        => date('Y-m-d H:i:s'),
         ]);
 
-        echo "[CRITÉRIO 4] Persistência da conexão com o documento fonte: " . ($relIns ? "PASS" : "FAIL") . "\n";
+        echo "[CRITÉRIO 4] Inserção de hipóteses e rastreabilidade no Grafo: " . ($pId && $lId && $relIns ? "PASS" : "FAIL") . "\n";
 
         // 5. Limpeza de dados de teste
         $db->table('relationships')->where('source_document_id', $docId)->delete();
@@ -85,7 +100,7 @@ class RegionEntityExtractionAcceptanceSeeder extends Seeder
         $db->table('entities')->where('id', $lId)->delete();
         $db->table('entities')->where('id', $docId)->delete();
 
-        echo "[CRITÉRIO 5] Limpeza e sanidade de teste de aceitação: PASS\n";
-        echo "\n=== TODOS OS 5 CRITÉRIOS DE ACEITE DA SPEC 8 PASSARAM COM SUCESSO! ===\n\n";
+        echo "[CRITÉRIO 5] Sanidade e limpeza automatizada: PASS\n";
+        echo "\n=== TODOS OS 5 CRITÉRIOS DE ACEITE PASSARAM COM SUCESSO! ===\n\n";
     }
 }

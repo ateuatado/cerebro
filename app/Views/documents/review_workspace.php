@@ -205,6 +205,8 @@ ob_start();
     </div>
 </div>
 
+<script>const BASE_URL = '<?= base_url() ?>/';</script>
+
 <?php
 $content = ob_get_clean();
 echo view('layout/base', [
