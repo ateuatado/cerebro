@@ -37,8 +37,13 @@ $pendingCount = 0; // TODO: injetar via controller
     <link rel="stylesheet" href="<?= base_url('assets/css/app.css') ?>">
     <link rel="stylesheet" href="<?= base_url('assets/css/layout.css') ?>">
 
-    <?php foreach ($pageCss ?? [] as $css): ?>
-    <link rel="stylesheet" href="<?= base_url('assets/css/' . esc($css)) ?>">
+    <?php foreach ($pageCss ?? [] as $css): 
+        $cssClean = ltrim(str_replace('../', '', $css), '/');
+        $cssUrl   = str_starts_with($cssClean, 'vendor/')
+            ? base_url('assets/' . $cssClean)
+            : base_url('assets/css/' . $cssClean);
+    ?>
+    <link rel="stylesheet" href="<?= $cssUrl ?>">
     <?php endforeach; ?>
 
     <link rel="icon" type="image/svg+xml" href="<?= base_url('favicon.ico') ?>">
@@ -260,8 +265,13 @@ $pendingCount = 0; // TODO: injetar via controller
 <script src="<?= base_url('assets/vendor/bootstrap/js/bootstrap.bundle.min.js') ?>"></script>
 <script src="<?= base_url('assets/js/app.js') ?>"></script>
 
-<?php foreach ($pageJs ?? [] as $js): ?>
-<script src="<?= base_url('assets/js/' . esc($js)) ?>"></script>
+<?php foreach ($pageJs ?? [] as $js): 
+    $jsClean = ltrim(str_replace('../', '', $js), '/');
+    $jsUrl   = str_starts_with($jsClean, 'vendor/')
+        ? base_url('assets/' . $jsClean)
+        : base_url('assets/js/' . $jsClean);
+?>
+<script src="<?= $jsUrl ?>"></script>
 <?php endforeach; ?>
 
 </body>

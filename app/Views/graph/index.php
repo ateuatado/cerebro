@@ -204,9 +204,9 @@ echo view('layout/base', [
         ['label'=>'Grafo',     'url'=>''],
     ],
     'content'    => $content,
-    'pageCss'    => ['dashboard.css'],
+    'pageCss'    => ['dashboard.css', 'vendor/vis-network/vis-network.min.css'],
     'pageJs'     => !empty($graphData['entities'])
-                    ? ['../vendor/vis-network/vis-network.min.js', 'graph.js', 'graph-page.js']
+                    ? ['vendor/vis-network/vis-network.min.js', 'graph.js']
                     : [],
 ]);
 ?>
