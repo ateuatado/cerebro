@@ -6,7 +6,7 @@ use Smalot\PdfParser\Parser as PdfParser;
 
 /**
  * DocumentParserService — Extrai texto legível de múltiplos formatos: TXT, PDF, JPG, JPEG, PNG, WEBP, BMP.
- * Integra OCR (OCR.Space API) para transcrição de fotos e documentos digitalizados em imagem.
+ * Suporta OCR de múltiplas páginas para PDFs escaneados e imagens.
  */
 class DocumentParserService
 {
@@ -64,7 +64,7 @@ class DocumentParserService
                 $pdf    = $parser->parseFile($filePath);
                 $text   = trim($pdf->getText());
 
-                // Se o PDF tiver camada de texto legível
+                // Se o PDF tiver camada de texto legível nativa
                 if (!empty($text) && strlen($text) > 30) {
                     return [
                         'text'     => $text,
@@ -73,19 +73,18 @@ class DocumentParserService
                     ];
                 }
 
-                // Se o PDF for digitalização / imagem sem camada de texto, envia para OCR
-                $ocrText = $this->performOcr($filePath, 'pdf');
+                // Se for PDF escaneado (sem texto nativo), usa OCR por páginas
+                $ocrText = $this->performPdfPageOcr($filePath);
                 return [
-                    'text'     => !empty($ocrText) ? $ocrText : "[PDF Escaneado - " . basename($filePath) . "]",
+                    'text'     => !empty(trim($ocrText)) ? $ocrText : "[PDF Escaneado sem texto - " . basename($filePath) . "]",
                     'is_image' => false,
                     'mime'     => 'application/pdf',
                 ];
 
             } catch (\Exception $e) {
-                // Fallback via OCR se o parser nativo falhar
-                $ocrText = $this->performOcr($filePath, 'pdf');
+                $ocrText = $this->performPdfPageOcr($filePath);
                 return [
-                    'text'     => !empty($ocrText) ? $ocrText : "[PDF Importado - " . basename($filePath) . "]",
+                    'text'     => !empty(trim($ocrText)) ? $ocrText : "[PDF Importado - " . basename($filePath) . "]",
                     'is_image' => false,
                     'mime'     => 'application/pdf',
                 ];
@@ -117,7 +116,63 @@ class DocumentParserService
     }
 
     /**
-     * Executa transcrição OCR na imagem/PDF utilizando OCR.Space API
+     * Executa OCR página a página para PDFs escaneados via Python/PyMuPDF + OCR.Space API
+     */
+    private function performPdfPageOcr(string $pdfPath): string
+    {
+        $tempDir = WRITEPATH . 'uploads/temp_pdf_ocr_' . time() . '/';
+        if (!is_dir($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
+
+        // Script Python inline para renderizar páginas do PDF em JPEG de 130 DPI
+        $pyCode = <<<PYTHON
+import os, fitz
+doc = fitz.open(r"{$pdfPath}")
+for idx in range(len(doc)):
+    page = doc[idx]
+    pix = page.get_pixmap(dpi=130)
+    img_p = os.path.join(r"{$tempDir}", f"page_{idx+1}.jpg")
+    pix.save(img_p, jpg_quality=85)
+PYTHON;
+
+        $scriptPath = $tempDir . 'render.py';
+        file_put_contents($scriptPath, $pyCode);
+
+        // Executar renderização em Python
+        exec("python " . escapeshellarg($scriptPath) . " 2>&1", $out, $ret);
+
+        $pageTexts = [];
+        $pageFiles = glob($tempDir . 'page_*.jpg');
+        sort($pageFiles, SORT_NATURAL);
+
+        if (!empty($pageFiles)) {
+            foreach ($pageFiles as $pIdx => $imgPath) {
+                $pText = $this->performOcr($imgPath, 'jpg');
+                if (!empty($pText)) {
+                    $pageTexts[] = "--- PÁGINA " . ($pIdx + 1) . " ---\n" . $pText;
+                }
+            }
+        } else {
+            // Fallback direto se o Python/PyMuPDF não estiver disponível
+            $directText = $this->performOcr($pdfPath, 'pdf');
+            if (!empty($directText)) {
+                $pageTexts[] = $directText;
+            }
+        }
+
+        // Limpar temporários
+        @unlink($scriptPath);
+        foreach ($pageFiles as $f) {
+            @unlink($f);
+        }
+        @rmdir($tempDir);
+
+        return implode("\n\n", $pageTexts);
+    }
+
+    /**
+     * Executa transcrição OCR na imagem/PDF utilizando a API do OCR.Space
      */
     private function performOcr(string $filePath, string $extension): string
     {
@@ -128,12 +183,12 @@ class DocumentParserService
             curl_setopt($ch, CURLOPT_HTTPHEADER, ['apikey: ' . $this->ocrApiKey]);
             curl_setopt($ch, CURLOPT_POSTFIELDS, [
                 'file'      => new \CURLFile($filePath),
-                'language'  => 'por', // Português
+                'language'  => 'por',
                 'isTable'   => 'false',
                 'OCREngine' => '2',
             ]);
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 60);
 
             $response = curl_exec($ch);
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -146,15 +201,12 @@ class DocumentParserService
                 }
             }
         } catch (\Exception $e) {
-            // Em caso de offline/timeout
+            // Falha graciosa
         }
 
         return '';
     }
 
-    /**
-     * Retorna o MIME Type correspondente para imagens
-     */
     private function getMimeType(string $ext): string
     {
         return match ($ext) {
