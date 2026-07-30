@@ -11,7 +11,7 @@ use App\Models\RelationshipModel;
 use App\Services\AuthService;
 
 /**
- * EntityController — CRUD de entidades do grafo
+ * EntityController — CRUD de entidades do grafo e exclusão em cascata de documentos e rastro
  */
 class EntityController extends BaseController
 {
@@ -178,6 +178,126 @@ class EntityController extends BaseController
     }
 
     /**
+     * POST /entidades/{id}/deletar — Apaga uma entidade e limpa em cascata suas conexões
+     */
+    public function delete(int $id)
+    {
+        $entity = $this->entityModel->find($id);
+        if (!$entity) {
+            if ($this->request->isAJAX()) {
+                return $this->response->setStatusCode(404)->setJSON(['error' => 'Entidade não encontrada.']);
+            }
+            session()->setFlashdata('error', 'Entidade não encontrada.');
+            return redirect()->to('entidades');
+        }
+
+        $db = \Config\Database::connect();
+
+        // Se for um documento, executa a exclusão completa do rastro do documento
+        if ($entity['type'] === 'document') {
+            return $this->deleteDocument($id);
+        }
+
+        // Remover relações onde a entidade aparece como origem ou destino
+        $db->table('relationships')
+            ->where('source_entity_id', $id)
+            ->orWhere('target_entity_id', $id)
+            ->delete();
+
+        // Apagar a entidade
+        $this->entityModel->delete($id);
+
+        if ($this->request->isAJAX()) {
+            return $this->response->setJSON([
+                'success' => true,
+                'message' => 'Entidade "' . $entity['name'] . '" e suas conexões foram excluídas com sucesso.'
+            ]);
+        }
+
+        session()->setFlashdata('success', 'Entidade "' . $entity['name'] . '" e suas conexões foram excluídas.');
+        return redirect()->to('entidades');
+    }
+
+    /**
+     * POST /documentos/{id}/deletar — Apaga o documento, arquivo físico e todo o rastro no grafo
+     */
+    public function deleteDocument(int $id)
+    {
+        $doc = $this->entityModel->find($id);
+        if (!$doc || $doc['type'] !== 'document') {
+            if ($this->request->isAJAX()) {
+                return $this->response->setStatusCode(404)->setJSON(['error' => 'Documento não encontrado.']);
+            }
+            session()->setFlashdata('error', 'Documento não encontrado.');
+            return redirect()->to('documentos');
+        }
+
+        $db = \Config\Database::connect();
+
+        // 1. Obter arquivo físico para remoção
+        $attrs = is_string($doc['attributes'])
+            ? (json_decode($doc['attributes'], true) ?? [])
+            : ($doc['attributes'] ?? []);
+
+        $filePath = $attrs['caminho_arquivo'] ?? '';
+        if (!empty($filePath) && file_exists($filePath)) {
+            @unlink($filePath);
+        }
+
+        // 2. Apagar todas as relações vinculadas a este documento como fonte primária
+        $db->table('relationships')->where('source_document_id', $id)->delete();
+
+        // 3. Apagar o registro do documento na tabela 'entities'
+        $this->entityModel->delete($id);
+
+        if ($this->request->isAJAX()) {
+            return $this->response->setJSON([
+                'success' => true,
+                'message' => 'Documento "' . $doc['name'] . '", arquivo físico e rastro no grafo foram excluídos com sucesso!'
+            ]);
+        }
+
+        session()->setFlashdata('success', 'Documento "' . $doc['name'] . '", arquivo físico e seu rastro no grafo foram apagados.');
+        return redirect()->to('documentos');
+    }
+
+    /**
+     * POST /api/limpar-banco-total — Apaga TODAS as entidades, relações e arquivos de upload (Apenas Coordenador)
+     */
+    public function clearAllIngestions()
+    {
+        if (!$this->auth->canConfirm()) { // Apenas coordenador
+            return $this->response->setStatusCode(403)->setJSON(['error' => 'Apenas coordenadores podem zerar a base de dados.']);
+        }
+
+        $db = \Config\Database::connect();
+
+        // 1. Apagar Relações
+        $db->table('relationships')->emptyTable();
+        $db->query('ALTER SEQUENCE IF EXISTS relationships_id_seq RESTART WITH 1;');
+
+        // 2. Apagar Entidades e Documentos
+        $db->table('entities')->emptyTable();
+        $db->query('ALTER SEQUENCE IF EXISTS entities_id_seq RESTART WITH 1;');
+
+        // 3. Excluir arquivos físicos salvos em writable/uploads/documents/
+        $uploadDir = WRITEPATH . 'uploads/documents/';
+        if (is_dir($uploadDir)) {
+            $files = glob($uploadDir . '*');
+            foreach ($files as $f) {
+                if (is_file($f) && basename($f) !== 'index.html') {
+                    @unlink($f);
+                }
+            }
+        }
+
+        return $this->response->setJSON([
+            'success' => true,
+            'message' => 'Toda a base de entidades, relações e arquivos de ingestão foi completamente zerada!'
+        ]);
+    }
+
+    /**
      * GET /api/entidades/busca?q=... — Autocomplete JSON
      */
     public function search()
@@ -245,16 +365,12 @@ class EntityController extends BaseController
             ->setBody(file_get_contents($filePath));
     }
 
-    /**
-     * Normaliza atributos do formulário (aninhados e vazios)
-     */
     private function flattenAttributes(array $attrs, string $type): array
     {
         $result = [];
 
         foreach ($attrs as $key => $value) {
             if (is_array($value)) {
-                // Subobjetos (ex: localizacao_arquivistica)
                 $sub = array_filter($value, fn($v) => $v !== '' && $v !== null);
                 if (!empty($sub)) {
                     $result[$key] = $sub;

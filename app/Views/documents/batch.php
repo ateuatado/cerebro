@@ -32,6 +32,11 @@ ob_start();
             <a href="<?= base_url('grafo') ?>" class="btn btn-outline-primary d-flex align-items-center gap-2" id="btn-view-graph-top">
                 <i class="bi bi-diagram-3"></i> Ver Grafo Visual
             </a>
+            <?php if ($role === 'coordenador') : ?>
+                <button type="button" class="btn btn-outline-danger d-flex align-items-center gap-2" onclick="clearFullDatabase();">
+                    <i class="bi bi-trash3-fill"></i> Zerar Toda a Base
+                </button>
+            <?php endif; ?>
         </div>
     </div>
 

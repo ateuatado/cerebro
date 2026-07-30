@@ -104,6 +104,14 @@ ob_start();
                 <span class="d-none d-sm-inline">Adicionar relação</span>
             </a>
 
+            <form action="<?= base_url('entidades/' . $entity['id'] . '/deletar') ?>" method="post" style="display:inline" onsubmit="return confirm('Tem certeza que deseja APAGAR definitivamente \'<?= esc($entity['name']) ?>\' e todas as suas conexões no grafo?<?= $entity['type'] === 'document' ? ' Isto também apagará o arquivo físico no servidor!' : '' ?>');">
+                <?= csrf_field() ?>
+                <button type="submit" class="btn btn-outline-danger btn-sm d-flex align-items-center gap-1" id="btn-delete-entity">
+                    <i class="bi bi-trash" aria-hidden="true"></i>
+                    <span>Excluir</span>
+                </button>
+            </form>
+
             <a href="<?= base_url('entidades') ?>"
                class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1"
                id="btn-back-entities">

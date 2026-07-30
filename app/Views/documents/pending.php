@@ -23,11 +23,16 @@ ob_start();
         </div>
         <div class="d-flex gap-2">
             <a href="<?= base_url('documentos/lote') ?>" class="btn btn-outline-secondary d-flex align-items-center gap-2">
-                <i class="bi bi-upload"></i> Fazer Novo Upload
+                <i class="bi bi-upload"></i> Novo Upload
             </a>
             <?php if (!empty($pendingDocs)) : ?>
                 <button id="btnProcessAll" class="btn btn-warning text-dark font-weight-bold shadow-sm d-flex align-items-center gap-2">
                     <i class="bi bi-cpu-fill"></i> Processar Todos por IA (<?= $totalPending ?>)
+                </button>
+            <?php endif; ?>
+            <?php if ($role === 'coordenador') : ?>
+                <button id="btnClearAllDatabase" class="btn btn-outline-danger d-flex align-items-center gap-2 shadow-sm">
+                    <i class="bi bi-trash3-fill"></i> Zerar Toda a Base
                 </button>
             <?php endif; ?>
         </div>
@@ -98,7 +103,7 @@ ob_start();
                                 <th>Formato</th>
                                 <th>Texto Transcrito</th>
                                 <th>Status</th>
-                                <th class="text-end" style="width: 320px;">Ações</th>
+                                <th class="text-end" style="width: 340px;">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -116,7 +121,7 @@ ob_start();
                                     </td>
                                     <td>
                                         <div class="text-info font-weight-bold"><?= number_format($doc['tamanho_caracteres']) ?> caracteres</div>
-                                        <small class="text-muted text-truncate d-inline-block" style="max-width: 250px;">
+                                        <small class="text-muted text-truncate d-inline-block" style="max-width: 200px;">
                                             <?= esc(mb_substr($doc['conteudo_transcrito'], 0, 60)) ?>...
                                         </small>
                                     </td>
@@ -136,11 +141,16 @@ ob_start();
                                                 data-id="<?= $doc['id'] ?>"
                                                 data-name="<?= esc($doc['name']) ?>"
                                                 data-text="<?= esc($doc['conteudo_transcrito']) ?>">
-                                            <i class="bi bi-pencil-square me-1"></i> Ler/Editar Texto
+                                            <i class="bi bi-pencil-square me-1"></i> Ler/Editar
                                         </button>
-                                        <button class="btn btn-sm btn-warning text-dark font-weight-bold btn-extract-single" 
+                                        <button class="btn btn-sm btn-warning text-dark font-weight-bold me-1 btn-extract-single" 
                                                 data-id="<?= $doc['id'] ?>">
                                             <i class="bi bi-cpu me-1"></i> Extrair por IA
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger btn-delete-doc" 
+                                                data-id="<?= $doc['id'] ?>"
+                                                data-name="<?= esc($doc['name']) ?>">
+                                            <i class="bi bi-trash"></i>
                                         </button>
                                     </td>
                                 </tr>

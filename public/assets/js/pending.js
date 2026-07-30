@@ -1,5 +1,5 @@
 /**
- * Cerebro — Lógica JS Local para Gestão de Documentos Pendentes de Extração (Spec 6)
+ * Cerebro — Lógica JS Local para Gestão de Documentos Pendentes e Exclusão em Cascata (Spec 6)
  * Zero CDN — Utiliza Fetch API nativa
  */
 document.addEventListener('DOMContentLoaded', function () {
@@ -9,13 +9,14 @@ document.addEventListener('DOMContentLoaded', function () {
         textModal = new bootstrap.Modal(modalElement);
     }
 
-    const modalDocId       = document.getElementById('modalDocId');
-    const modalDocName     = document.getElementById('modalDocName');
-    const modalDocText     = document.getElementById('modalDocText');
-    const modalCharCounter = document.getElementById('modalCharCounter');
-    const btnSaveText      = document.getElementById('btnSaveText');
+    const modalDocId          = document.getElementById('modalDocId');
+    const modalDocName        = document.getElementById('modalDocName');
+    const modalDocText        = document.getElementById('modalDocText');
+    const modalCharCounter    = document.getElementById('modalCharCounter');
+    const btnSaveText         = document.getElementById('btnSaveText');
     const btnExtractFromModal = document.getElementById('btnExtractFromModal');
-    const btnProcessAll    = document.getElementById('btnProcessAll');
+    const btnProcessAll       = document.getElementById('btnProcessAll');
+    const btnClearAllDatabase = document.getElementById('btnClearAllDatabase');
 
     // 1. Abrir Modal de Edição de Texto
     document.querySelectorAll('.btn-view-text').forEach(button => {
@@ -90,7 +91,6 @@ document.addEventListener('DOMContentLoaded', function () {
             btnSaveText.innerHTML = '<i class="bi bi-save me-1"></i> Salvar Alterações no Repositório';
 
             if (data.success) {
-                // Atualizar o botão da tabela correspondente
                 const rowBtn = document.querySelector(`.btn-view-text[data-id="${id}"]`);
                 if (rowBtn) {
                     rowBtn.setAttribute('data-text', text);
@@ -164,7 +164,81 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // 5. Processar Todos os Pendentes em Lote
+    // 5. Excluir Documento e Todo o seu Rastro em Cascata
+    document.querySelectorAll('.btn-delete-doc').forEach(button => {
+        button.addEventListener('click', function () {
+            const id   = this.getAttribute('data-id');
+            const name = this.getAttribute('data-name');
+
+            if (!confirm(`Deseja APAGAR DEFINITIVAMENTE o documento:\n"${name}"\n\nIsso apagará o arquivo físico no servidor e todas as conexões geradas por ele no grafo!`)) {
+                return;
+            }
+
+            this.disabled = true;
+
+            fetch(BASE_URL + `documentos/${id}/deletar`, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const row = document.getElementById(`docRow-${id}`);
+                    if (row) {
+                        row.remove();
+                        checkEmptyTable();
+                    }
+                    alert(data.message);
+                } else {
+                    this.disabled = false;
+                    alert('Erro ao excluir documento: ' + (data.error || 'Falha.'));
+                }
+            })
+            .catch(err => {
+                this.disabled = false;
+                alert('Erro de comunicação com o servidor.');
+            });
+        });
+    });
+
+    // 6. Zerar Toda a Base de Ingestões e Rastreos (Coordenador)
+    if (btnClearAllDatabase) {
+        btnClearAllDatabase.addEventListener('click', function () {
+            if (!confirm('⚠️ ATENÇÃO: Deseja ZERAR COMPLETAMENTE todos os documentos, entidades extraídas, conexões do grafo e arquivos salvos?\n\nEsta ação é irreversível!')) {
+                return;
+            }
+
+            btnClearAllDatabase.disabled = true;
+            btnClearAllDatabase.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Zerando base...';
+
+            fetch(BASE_URL + 'api/limpar-banco-total', {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    window.location.reload();
+                } else {
+                    btnClearAllDatabase.disabled = false;
+                    btnClearAllDatabase.innerHTML = '<i class="bi bi-trash3-fill"></i> Zerar Toda a Base';
+                    alert('Erro ao zerar base: ' + (data.error || 'Acesso negado.'));
+                }
+            })
+            .catch(err => {
+                btnClearAllDatabase.disabled = false;
+                btnClearAllDatabase.innerHTML = '<i class="bi bi-trash3-fill"></i> Zerar Toda a Base';
+                alert('Erro de comunicação ao zerar a base.');
+            });
+        });
+    }
+
+    // 7. Processar Todos os Pendentes em Lote
     if (btnProcessAll) {
         btnProcessAll.addEventListener('click', function () {
             if (!confirm('Deseja iniciar a extração por IA de TODOS os documentos pendentes?')) {

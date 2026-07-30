@@ -3,6 +3,30 @@
 
 'use strict';
 
+window.clearFullDatabase = function () {
+    if (!confirm('⚠️ ATENÇÃO: Deseja ZERAR COMPLETAMENTE toda a base de dados (0 entidades, 0 relações, apagar todos os arquivos salvos)?\n\nEsta ação é irreversível!')) {
+        return;
+    }
+
+    const baseUrl = window.BASE_URL || '';
+    fetch(baseUrl + 'api/limpar-banco-total', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            window.location.reload();
+        } else {
+            alert('Erro ao zerar base: ' + (data.error || 'Acesso negado.'));
+        }
+    })
+    .catch(err => {
+        alert('Erro de rede ao comunicar com o servidor.');
+    });
+};
+
 document.addEventListener('DOMContentLoaded', function () {
     const dropzoneCard    = document.getElementById('dropzone-card');
     const fileInput       = document.getElementById('batch-file-input');
@@ -137,8 +161,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     formData.append(csrf.dataset.name || 'csrf_token', csrf.content);
                 }
 
-                const baseUrl = document.querySelector('[data-graph-base-url]')?.dataset.graphBaseUrl || '';
-                const response = await fetch(baseUrl + '/api/documentos/upload-item', {
+                const baseUrl = window.BASE_URL || '';
+                const response = await fetch(baseUrl + 'api/documentos/upload-item', {
                     method: 'POST',
                     headers: { 'X-Requested-With': 'XMLHttpRequest' },
                     body: formData
@@ -171,7 +195,6 @@ document.addEventListener('DOMContentLoaded', function () {
             completedFiles++;
             updateProgressUI();
 
-            // Pausa de 200ms para suavizar chamadas à API
             await new Promise(r => setTimeout(r, 200));
         }
 

@@ -59,3 +59,8 @@ $routes->get('documentos/pendentes',                       'PendingExtractionCon
 $routes->post('api/documentos/pendentes/salvar-texto',     'PendingExtractionController::updateText', ['filter' => 'auth']);
 $routes->post('api/documentos/pendentes/extrair/(:num)',   'PendingExtractionController::extractSingle/$1', ['filter' => 'auth']);
 $routes->post('api/documentos/pendentes/processar-todos',  'PendingExtractionController::extractBatch', ['filter' => 'auth']);
+
+// ─── Exclusão em Cascata e Limpeza Total ─────────────────────────────
+$routes->post('entidades/(:num)/deletar',                  'EntityController::delete/$1', ['filter' => 'auth']);
+$routes->post('documentos/(:num)/deletar',                 'EntityController::deleteDocument/$1', ['filter' => 'auth']);
+$routes->post('api/limpar-banco-total',                    'EntityController::clearAllIngestions', ['filter' => 'auth']);
