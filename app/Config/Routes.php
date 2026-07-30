@@ -47,13 +47,19 @@ $routes->group('documentos', ['filter' => 'auth'], function ($routes) {
     $routes->post('reprocessar-tudo',       'ExtractionController::reprocessAll');
     $routes->post('(:num)/extrair',         'ExtractionController::extract/$1');
     $routes->post('(:num)/vincular-arquivo', 'ExtractionController::attachFile/$1');
-    $routes->get('(:num)/revisar',          'ExtractionController::review/$1');
+    $routes->get('(:num)/revisar',          'DocumentReviewController::review/$1');
     $routes->post('(:num)/aprovar-todas',   'ExtractionController::approveAll/$1');
 });
 
 // API de Upload em Lote (AJAX)
 $routes->post('api/documentos/upload-item', 'BatchIngestController::uploadItem', ['filter' => 'auth']);
 $routes->post('documentos/api/documentos/upload-item', 'BatchIngestController::uploadItem', ['filter' => 'auth']);
+
+// ─── Workspace Interativo de Transcrição Histórica — Spec 7 ──────────
+$routes->get('api/documentos/(:num)/pagina/(:num)/imagem',          'DocumentReviewController::getPageImage/$1/$2', ['filter' => 'auth']);
+$routes->post('api/documentos/(:num)/pagina/(:num)/girar',           'DocumentReviewController::rotatePage/$1/$2', ['filter' => 'auth']);
+$routes->post('api/documentos/(:num)/pagina/(:num)/extrair-regiao',  'DocumentReviewController::extractRegion/$1/$2', ['filter' => 'auth']);
+$routes->post('api/documentos/(:num)/pagina/(:num)/salvar-texto',    'DocumentReviewController::savePageText/$1/$2', ['filter' => 'auth']);
 
 // ─── Documentos Pendentes de Extração — Spec 6 ───────────────────────
 $routes->get('documentos/pendentes',                       'PendingExtractionController::index', ['filter' => 'auth']);
