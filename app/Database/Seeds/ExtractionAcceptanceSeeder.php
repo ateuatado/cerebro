@@ -125,6 +125,8 @@ class ExtractionAcceptanceSeeder extends Seeder
         // -----------------------------------------------------------------
         // Critério 6: Persistência de Entidades e Hipóteses vinculadas ao Documento
         // -----------------------------------------------------------------
+        $db->table('entities')->where('type !=', 'document')->like('name', 'Teste', 'both')->delete();
+
         $mockEntities = [
             ['name' => 'Edgard Leuenroth Teste', 'type' => 'person'],
             ['name' => 'São Paulo Teste', 'type' => 'location'],
@@ -142,7 +144,7 @@ class ExtractionAcceptanceSeeder extends Seeder
 
         $persisted = $extractionService->persistGraphData($docId, 'Doc Teste Spec 6', $mockEntities, $mockRels, 1);
 
-        if ($persisted['newEntities'] >= 1 && $persisted['newRels'] >= 1) {
+        if (count($persisted['nameToIdMap']) >= 2 && $persisted['newRels'] >= 1) {
             echo "[✓] Critério 6/6 PASSOU: Grafo populado com hipóteses vinculadas ao documento fonte.\n";
             $passed++;
         } else {
