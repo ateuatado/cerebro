@@ -29,12 +29,157 @@ class DeepSeekService
     }
 
     /**
+     * Transcreve e extrai entidades/relações a partir do texto bruto de um recorte de imagem manuscrita.
+     */
+    public function extractFromCropText(string $docTitle, string $rawOcrText): array
+    {
+        if (empty($this->apiKey)) {
+            throw new \RuntimeException('A chave DEEPSEEK_API_KEY não está configurada no arquivo .env.');
+        }
+
+        $systemPrompt = <<<PROMPT
+Você é um historiador e paleógrafo especialista em leitura de documentos manuscritos cursivos do Brasil das décadas de 1920 e 1930 (boletins de batalhões militares, registros de prisões, jornais e processos judiciais).
+
+O texto a seguir veio de um recorte de imagem de manuscrito em caligrafia cursiva antiga e pode conter ruídos ou abreviações da época (ex: "Ten." = Tenente, "Sgt." = Sargento, "Alferes", "2º Batalhão", "Mappa diario", "preso_em").
+
+Sua missão é:
+1. "transcription": Corrigir e restaurar o texto em português respeitando a ortografia/conteúdo original do manuscrito.
+2. "entities": Extrair todas as pessoas (com patentes/cargos em atributos), locais, eventos e organizações.
+3. "relationships": Extrair todas as conexões entre essas entidades (ex: lotado_em, preso_em, comandado_por, discursou_em).
+
+Estrutura JSON esperada:
+{
+  "transcription": "Texto manuscrito restaurado...",
+  "entities": [
+    {"name": "Nome", "type": "person|location|event", "attributes": {"cargo": "..."}}
+  ],
+  "relationships": [
+    {
+      "source_name": "Nome Origem",
+      "target_name": "Nome Destino",
+      "relationship_type": "lotado_em",
+      "direction": "directed",
+      "confidence": 0.90,
+      "excerpt": "trecho..."
+    }
+  ]
+}
+PROMPT;
+
+        $userPrompt = "Título do Documento: {$docTitle}\n\nTexto Bruto do Recorte:\n{$rawOcrText}";
+
+        $data = [
+            'model' => $this->model,
+            'messages' => [
+                ['role' => 'system', 'content' => $systemPrompt],
+                ['role' => 'user', 'content' => $userPrompt]
+            ],
+            'temperature' => 0.1,
+            'response_format' => ['type' => 'json_object']
+        ];
+
+        $ch = curl_init($this->apiUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $this->apiKey
+        ]);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 90);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode !== 200 || empty($response)) {
+            // Retorno de contingência com extração via OCR padrão
+            return [
+                'transcription' => $rawOcrText,
+                'entities'      => [],
+                'relationships' => [],
+            ];
+        }
+
+        $json = json_decode($response, true);
+        $content = $json['choices'][0]['message']['content'] ?? '';
+        $cleanedContent = preg_replace('/^```json\s*|\s*```$/i', '', trim($content));
+        $extractedData  = json_decode($cleanedContent, true) ?: [];
+
+        return [
+            'transcription' => $extractedData['transcription'] ?? $rawOcrText,
+            'entities'      => $extractedData['entities'] ?? [],
+            'relationships' => $extractedData['relationships'] ?? [],
+        ];
+    }
+
+    /**
+     * Extração de alta densidade em documentos longos (ex: jornais, processos extensos),
+     * dividindo o texto em blocos sequenciais para extrair dezenas/centenas de relações sem truncamento da IA.
+     */
+    public function extractKnowledgeChunked(string $docTitle, string $docText, array $extraAttributes = [], int $chunkSize = 3000): array
+    {
+        if (strlen($docText) <= $chunkSize) {
+            return $this->extractKnowledge($docTitle, $docText, $extraAttributes);
+        }
+
+        $lines = explode("\n", $docText);
+        $chunks = [];
+        $currentChunk = '';
+
+        foreach ($lines as $line) {
+            if (strlen($currentChunk) + strlen($line) > $chunkSize && !empty($currentChunk)) {
+                $chunks[] = $currentChunk;
+                $currentChunk = '';
+            }
+            $currentChunk .= $line . "\n";
+        }
+        if (!empty(trim($currentChunk))) {
+            $chunks[] = $currentChunk;
+        }
+
+        $allEntities     = [];
+        $allRelationships = [];
+
+        foreach ($chunks as $index => $chunkText) {
+            $chunkTitle = "{$docTitle} (Parte " . ($index + 1) . " de " . count($chunks) . ")";
+            try {
+                $res = $this->extractKnowledge($chunkTitle, $chunkText, $extraAttributes);
+
+                foreach ($res['entities'] as $entity) {
+                    $name = trim($entity['name'] ?? '');
+                    $type = $entity['type'] ?? 'person';
+                    if (!empty($name)) {
+                        $key = mb_strtolower($name) . '|' . $type;
+                        if (!isset($allEntities[$key])) {
+                            $allEntities[$key] = $entity;
+                        } else {
+                            $allEntities[$key]['attributes'] = array_merge(
+                                $allEntities[$key]['attributes'] ?? [],
+                                $entity['attributes'] ?? []
+                            );
+                        }
+                    }
+                }
+
+                foreach ($res['relationships'] as $rel) {
+                    $allRelationships[] = $rel;
+                }
+
+            } catch (\Exception $e) {
+                // Log da falha no bloco e continua nos próximos
+            }
+        }
+
+        return [
+            'entities'      => array_values($allEntities),
+            'relationships' => $allRelationships,
+        ];
+    }
+
+    /**
      * Analisa o texto de um documento histórico e extrai entidades e relações em formato estruturado.
-     *
-     * @param string $docTitle Título do documento
-     * @param string $docText Conteúdo/transcrição do documento
-     * @param array $extraAttributes Atributos bibliográficos do documento
-     * @return array Array estruturado com ['entities' => [...], 'relationships' => [...]]
      */
     public function extractKnowledge(string $docTitle, string $docText, array $extraAttributes = []): array
     {
@@ -43,37 +188,39 @@ class DeepSeekService
         }
 
         $systemPrompt = <<<PROMPT
-Você é um especialista em análise documental histórica e extração de redes e grafos de conhecimento, com foco na história do Brasil nas décadas de 1920 e 1930 (período de conflitos políticos, repressão e fragilização democrática).
+Você é um historiador especialista em análise exaustiva e de alta densidade de jornais e documentos do Brasil das décadas de 1920 e 1930 (movimento operário, anarquismo, repressão policial, greves, edições de jornais).
 
-Sua tarefa é analisar o texto do documento fornecido e extrair:
-1. ENTIDADES mencionadas ou implicitamente presentes:
-   - "person": Pessoas (ex: indiciados, delegados, testemunhas, militantes, autoridades). Atributos possíveis: ocupacao, apelido, cargo, filiacao.
-   - "location": Locais (ex: cidades, prisões, quarteis, ruas, órgãos públicos). Atributos possíveis: municipio, estado, tipo_local.
-   - "event": Eventos datados ou marcantes (ex: prisões, depoimentos, julgamentos, manifestações, confrontos). Atributos possíveis: data, tipo_evento, descricao.
+Sua missão é LER EXAUSTIVAMENTE o texto e EXTRAIR O MÁXIMO POSSÍVEL de entidades e relações. Seja extremamente detalhista — extraia dezenas de nomes, locais, jornais, organizações, sindicatos, prisioneiros e eventos mencionados no texto!
+
+1. ENTIDADES:
+   - "person": Pessoas (ex: militantes, oradores, prisioneiros, policiais, redateis, colaboradores, operários, autoridades).
+   - "location": Locais (ex: cidades, ruas, praças, prisões, sedes de sindicatos, redações, auditórios).
+   - "event": Eventos (ex: greves, prisões, sessões de leitura, comícios, perseguições, edições, reuniões, conferências).
 
 2. RELAÇÕES entre essas entidades:
-   - relationship_type: Nome da relação em snake_case (ex: participou_de, foi_preso_em, investigou, denunciou, liderou, presente_em, associado_a, submetido_a).
-   - source_name: Nome exato da entidade origem (como extraída no array de entidades).
-   - target_name: Nome exato da entidade destino (como extraída no array de entidades).
+   - relationship_type (snake_case): ex: publicou, editou, assinou, denunciou, preso_em, discursou_em, militante_de, participou_de, localizado_em, apoia, reprimiu.
+   - source_name: Nome exato da entidade origem.
+   - target_name: Nome exato da entidade destino.
    - direction: "directed" ou "symmetric".
-   - confidence: Valor decimal entre 0.50 e 0.99 indicando o grau de certeza histórica da inferência a partir do texto.
-   - excerpt: Trecho curto do texto original de onde a relação foi extraída (máximo 150 caracteres).
+   - confidence: Valor decimal entre 0.60 e 0.99.
+   - excerpt: Trecho original do texto (máx 150 caracteres).
 
 REGRAS OBRIGATÓRIAS:
-- Retorne EXCLUSIVAMENTE um objeto JSON válido, sem trechos em markdown ```json ... ``` ou texto explicativo extra.
-- Estrutura de saída esperada:
+- Retorne EXCLUSIVAMENTE um objeto JSON válido.
+- Seja exaustivo: não resuma ou pule nomes citados no texto.
+- Estrutura JSON esperada:
 {
   "entities": [
-    {"name": "Nome da Entidade", "type": "person|location|event", "attributes": {"chave": "valor"}}
+    {"name": "Nome da Entidade", "type": "person|location|event", "attributes": {"cargo": "...", "ocupacao": "..."}}
   ],
   "relationships": [
     {
       "source_name": "Nome Origem",
       "target_name": "Nome Destino",
-      "relationship_type": "participou_de",
+      "relationship_type": "discursou_em",
       "direction": "directed",
-      "confidence": 0.85,
-      "excerpt": "trecho do documento..."
+      "confidence": 0.90,
+      "excerpt": "trecho do jornal..."
     }
   ]
 }
@@ -104,7 +251,7 @@ PROMPT;
         ]);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 90);
 
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -126,7 +273,6 @@ PROMPT;
             throw new \RuntimeException('A resposta da API DeepSeek veio vazia.');
         }
 
-        // Limpar possíveis blocos de markdown se retornados
         $cleanedContent = preg_replace('/^```json\s*|\s*```$/i', '', trim($content));
         $extractedData  = json_decode($cleanedContent, true);
 
