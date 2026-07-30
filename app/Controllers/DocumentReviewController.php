@@ -7,8 +7,8 @@ use App\Services\DocumentParserService;
 use App\Services\DeepSeekService;
 
 /**
- * DocumentReviewController — Workspace Interativo de Transcrição Histórica (Spec 7)
- * Permite rotação de imagem de página, recorte de região com IA e salvamento paginado.
+ * DocumentReviewController — Workspace Interativo de Transcrição Histórica (Spec 7 & Spec 8)
+ * Permite rotação de imagem de página, recorte de região para HTR e extração de entidades em 1-clique.
  */
 class DocumentReviewController extends BaseController
 {
@@ -76,7 +76,6 @@ class DocumentReviewController extends BaseController
 
         $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
 
-        // Se for imagem direta (.jpg, .png, etc)
         if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'bmp'])) {
             $mime = match ($ext) {
                 'jpg', 'jpeg' => 'image/jpeg',
@@ -87,7 +86,6 @@ class DocumentReviewController extends BaseController
             return $this->response->setHeader('Content-Type', $mime)->setBody(file_get_contents($filePath));
         }
 
-        // Se for PDF, busca na pasta de cache da página
         $cacheDir  = WRITEPATH . 'uploads/page_cache_' . $id;
         $this->parserService->renderPdfPagesToCache($filePath, $cacheDir);
 
@@ -131,14 +129,12 @@ class DocumentReviewController extends BaseController
             return $this->response->setJSON(['success' => false, 'error' => 'Imagem da página não encontrada para rotação.']);
         }
 
-        // Executar rotação via PHP GD
         $ok = $this->parserService->rotateImageFile($targetImg, $degrees);
 
         if (!$ok) {
             return $this->response->setJSON(['success' => false, 'error' => 'Falha ao rotacionar imagem da página.']);
         }
 
-        // Refazer OCR na nova orientação da página
         $newOcrText = $this->parserService->performOcr($targetImg, 'jpg');
 
         return $this->response->setJSON([
@@ -150,7 +146,7 @@ class DocumentReviewController extends BaseController
     }
 
     /**
-     * Extrai o texto manuscrito/tabelado da região selecionada (Crop Tool com IA) (/api/documentos/{id}/pagina/{page}/extrair-regiao)
+     * Extrai o texto manuscrito da região selecionada (/api/documentos/{id}/pagina/{page}/extrair-regiao)
      */
     public function extractRegion(int $id, int $page)
     {
@@ -182,13 +178,11 @@ class DocumentReviewController extends BaseController
             return $this->response->setJSON(['success' => false, 'error' => 'Imagem da página não encontrada para recorte.']);
         }
 
-        // 1. Recortar a região selecionada
         $cropFile = $this->parserService->cropImageRegion($targetImg, $x, $y, $w, $h, $canvasW, $canvasH);
         if (!$cropFile || !file_exists($cropFile)) {
             return $this->response->setJSON(['success' => false, 'error' => 'Não foi possível recortar a área selecionada.']);
         }
 
-        // 2. Realizar OCR/HTR focado no recorte
         $croppedText = $this->parserService->performOcr($cropFile, 'jpg');
         @unlink($cropFile);
 
@@ -199,6 +193,157 @@ class DocumentReviewController extends BaseController
         return $this->response->setJSON([
             'success' => true,
             'text'    => $croppedText,
+        ]);
+    }
+
+    /**
+     * Spec 8: Extrai Entidades & Grafo a partir da Seleção de Região em 1-Clique (/api/documentos/{id}/pagina/{page}/extrair-entidades-regiao)
+     */
+    public function extractEntitiesFromRegion(int $id, int $page)
+    {
+        $x       = (int) $this->request->getPost('x');
+        $y       = (int) $this->request->getPost('y');
+        $w       = (int) $this->request->getPost('width');
+        $h       = (int) $this->request->getPost('height');
+        $canvasW = (int) $this->request->getPost('canvas_w');
+        $canvasH = (int) $this->request->getPost('canvas_h');
+
+        $doc = $this->entityModel->find($id);
+        if (!$doc) {
+            return $this->response->setJSON(['success' => false, 'error' => 'Documento não encontrado.']);
+        }
+
+        $attributes = is_string($doc['attributes']) ? json_decode($doc['attributes'], true) : ($doc['attributes'] ?? []);
+        $filePath   = WRITEPATH . 'uploads/' . ($attributes['caminho_arquivo'] ?? '');
+        $ext        = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+
+        $targetImg = null;
+        if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'bmp'])) {
+            $targetImg = $filePath;
+        } else {
+            $cacheDir  = WRITEPATH . 'uploads/page_cache_' . $id;
+            $targetImg = $cacheDir . '/page_' . $page . '.jpg';
+        }
+
+        if (!$targetImg || !file_exists($targetImg)) {
+            return $this->response->setJSON(['success' => false, 'error' => 'Imagem da página não encontrada.']);
+        }
+
+        $cropFile = $this->parserService->cropImageRegion($targetImg, $x, $y, $w, $h, $canvasW, $canvasH);
+        if (!$cropFile || !file_exists($cropFile)) {
+            return $this->response->setJSON(['success' => false, 'error' => 'Falha ao recortar a área selecionada.']);
+        }
+
+        $rawText = $this->parserService->performOcr($cropFile, 'jpg');
+        @unlink($cropFile);
+
+        // Chamar a IA com o texto HTR do recorte
+        $aiResult = $this->deepSeekService->extractFromCropText($doc['name'], $rawText);
+
+        return $this->response->setJSON([
+            'success'       => true,
+            'transcription' => $aiResult['transcription'] ?? $rawText,
+            'entities'      => $aiResult['entities'] ?? [],
+            'relationships' => $aiResult['relationships'] ?? [],
+        ]);
+    }
+
+    /**
+     * Spec 8: Confirma e salva as entidades/relações aprovadas no Grafo de Hipóteses (/api/documentos/{id}/confirmar-entidades-regiao)
+     */
+    public function confirmRegionEntities(int $id)
+    {
+        $doc = $this->entityModel->find($id);
+        if (!$doc) {
+            return $this->response->setJSON(['success' => false, 'error' => 'Documento não encontrado.']);
+        }
+
+        $jsonInput = $this->request->getJSON(true);
+        $entities  = $jsonInput['entities'] ?? [];
+        $rels      = $jsonInput['relationships'] ?? [];
+        $transcript= $jsonInput['transcription'] ?? '';
+
+        $db = \Config\Database::connect();
+        $createdEntitiesCount = 0;
+        $createdRelsCount     = 0;
+        $entityMap            = [];
+
+        // 1. Gravar Entidades Aprovadas como 'hypothesis'
+        foreach ($entities as $e) {
+            $name = trim($e['name'] ?? '');
+            $type = $e['type'] ?? 'person';
+            if (empty($name)) continue;
+
+            $existing = $db->table('entities')
+                           ->where('name', $name)
+                           ->where('type', $type)
+                           ->get()
+                           ->getRowArray();
+
+            if ($existing) {
+                $entityMap[$name] = $existing['id'];
+            } else {
+                $newId = $this->entityModel->insert([
+                    'name'        => $name,
+                    'type'        => $type,
+                    'status'      => 'hypothesis',
+                    'description' => "Extraído do documento manuscrito: {$doc['name']}",
+                    'attributes'  => json_encode($e['attributes'] ?? [], JSON_UNESCAPED_UNICODE),
+                    'created_at'  => date('Y-m-d H:i:s'),
+                ]);
+                if ($newId) {
+                    $entityMap[$name] = $newId;
+                    $createdEntitiesCount++;
+                }
+            }
+        }
+
+        // 2. Gravar Relações Aprovadas como 'hypothesis'
+        foreach ($rels as $r) {
+            $srcName = trim($r['source_name'] ?? '');
+            $tgtName = trim($r['target_name'] ?? '');
+
+            $srcId = $entityMap[$srcName] ?? null;
+            $tgtId = $entityMap[$tgtName] ?? null;
+
+            if (!$srcId || !$tgtId || $srcId === $tgtId) continue;
+
+            $relType = $r['relationship_type'] ?? 'mencionado_em';
+            $conf    = (float) ($r['confidence'] ?? 0.85);
+
+            $db->table('relationships')->insert([
+                'source_entity_id'  => $srcId,
+                'target_entity_id'  => $tgtId,
+                'relationship_type' => $relType,
+                'direction'         => $r['direction'] ?? 'directed',
+                'confidence'        => $conf,
+                'status'            => 'hypothesis',
+                'source_document_id'=> $id,
+                'source_reference'  => json_encode([
+                    'documento_id' => $id,
+                    'documento'    => $doc['name'],
+                    'trecho'       => $r['excerpt'] ?? '',
+                ], JSON_UNESCAPED_UNICODE),
+                'created_at'        => date('Y-m-d H:i:s'),
+            ]);
+            $createdRelsCount++;
+        }
+
+        // 3. Anexar transcrição ao repositório do documento
+        if (!empty(trim($transcript))) {
+            $attributes = is_string($doc['attributes']) ? json_decode($doc['attributes'], true) : ($doc['attributes'] ?? []);
+            $attributes['conteudo_transcrito'] = ($attributes['conteudo_transcrito'] ?? '') . "\n\n[RECURSO HTR REGIONAL]:\n" . $transcript;
+
+            $db->table('entities')
+               ->where('id', $id)
+               ->update(['attributes' => json_encode($attributes, JSON_UNESCAPED_UNICODE)]);
+        }
+
+        return $this->response->setJSON([
+            'success'       => true,
+            'message'       => "Salvas {$createdEntitiesCount} entidades e {$createdRelsCount} relações no Grafo com sucesso!",
+            'entitiesSaved' => $createdEntitiesCount,
+            'relsSaved'     => $createdRelsCount,
         ]);
     }
 
