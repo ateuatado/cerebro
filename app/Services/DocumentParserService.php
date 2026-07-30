@@ -5,10 +5,33 @@ namespace App\Services;
 use Smalot\PdfParser\Parser as PdfParser;
 
 /**
- * DocumentParserService — Extrai texto legível de múltiplos formatos: TXT, PDF, JPG, JPEG, PNG, WEBP, JSON, CSV.
+ * DocumentParserService — Extrai texto legível de múltiplos formatos: TXT, PDF, JPG, JPEG, PNG, WEBP, BMP.
+ * Integra OCR (OCR.Space API) para transcrição de fotos e documentos digitalizados em imagem.
  */
 class DocumentParserService
 {
+    private string $ocrApiKey;
+
+    public function __construct()
+    {
+        $this->ocrApiKey = getenv('OCR_SPACE_API_KEY') ?: 'K88673738888957';
+
+        if (empty($this->ocrApiKey) && file_exists(ROOTPATH . '.env')) {
+            $lines = file(ROOTPATH . '.env');
+            foreach ($lines as $line) {
+                if (strpos(trim($line), 'OCR_SPACE_API_KEY') === 0) {
+                    $parts = explode('=', $line, 2);
+                    $this->ocrApiKey = trim($parts[1] ?? '');
+                    break;
+                }
+            }
+        }
+
+        if (empty($this->ocrApiKey)) {
+            $this->ocrApiKey = 'K88673738888957';
+        }
+    }
+
     /**
      * Extrai o conteúdo textual a partir do caminho do arquivo e extensão.
      *
@@ -39,22 +62,30 @@ class DocumentParserService
             try {
                 $parser = new PdfParser();
                 $pdf    = $parser->parseFile($filePath);
-                $text   = $pdf->getText();
+                $text   = trim($pdf->getText());
 
-                // Se o PDF não tiver camada de texto pesquisável (imagem digitalizada)
-                if (empty(trim($text))) {
-                    $text = "[PDF Digitalizado/Imagem - O documento foi importado como PDF sem camada de texto direta. Título do arquivo: " . basename($filePath) . "]";
+                // Se o PDF tiver camada de texto legível
+                if (!empty($text) && strlen($text) > 30) {
+                    return [
+                        'text'     => $text,
+                        'is_image' => false,
+                        'mime'     => 'application/pdf',
+                    ];
                 }
 
+                // Se o PDF for digitalização / imagem sem camada de texto, envia para OCR
+                $ocrText = $this->performOcr($filePath, 'pdf');
                 return [
-                    'text'     => $text,
+                    'text'     => !empty($ocrText) ? $ocrText : "[PDF Escaneado - " . basename($filePath) . "]",
                     'is_image' => false,
                     'mime'     => 'application/pdf',
                 ];
+
             } catch (\Exception $e) {
-                // Fallback em caso de PDF protegido
+                // Fallback via OCR se o parser nativo falhar
+                $ocrText = $this->performOcr($filePath, 'pdf');
                 return [
-                    'text'     => "[PDF Importado - " . basename($filePath) . ". Falha na leitura direta: " . $e->getMessage() . "]",
+                    'text'     => !empty($ocrText) ? $ocrText : "[PDF Importado - " . basename($filePath) . "]",
                     'is_image' => false,
                     'mime'     => 'application/pdf',
                 ];
@@ -63,26 +94,17 @@ class DocumentParserService
 
         // 3. Imagens (.jpg, .jpeg, .png, .webp, .bmp)
         if (in_array($extension, ['jpg', 'jpeg', 'png', 'webp', 'bmp'])) {
-            $imageData = file_get_contents($filePath);
-            $mimeType  = $this->getMimeType($extension);
-            $base64    = 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
+            $ocrText  = $this->performOcr($filePath, $extension);
+            $mimeType = $this->getMimeType($extension);
 
-            // Tentar extrair metadados EXIF se disponíveis (JPG/JPEG)
-            $exifDetails = '';
-            if (function_exists('exif_read_data') && in_array($extension, ['jpg', 'jpeg'])) {
-                @$exif = exif_read_data($filePath);
-                if ($exif && is_array($exif)) {
-                    $exifDetails = " Metadados EXIF: " . json_encode(array_filter($exif, 'is_scalar'), JSON_UNESCAPED_UNICODE);
-                }
-            }
-
-            $descriptionText = "[Foto/Imagem de Documento Histórico: " . basename($filePath) . ". {$exifDetails}]";
+            $finalText = !empty(trim($ocrText))
+                ? "Transcrição OCR da imagem (" . basename($filePath) . "):\n" . $ocrText
+                : "[Imagem de Documento: " . basename($filePath) . "]";
 
             return [
-                'text'     => $descriptionText,
+                'text'     => $finalText,
                 'is_image' => true,
                 'mime'     => $mimeType,
-                'base64'   => $base64,
             ];
         }
 
@@ -92,6 +114,42 @@ class DocumentParserService
             'is_image' => false,
             'mime'     => 'application/octet-stream',
         ];
+    }
+
+    /**
+     * Executa transcrição OCR na imagem/PDF utilizando OCR.Space API
+     */
+    private function performOcr(string $filePath, string $extension): string
+    {
+        try {
+            $ch = curl_init('https://api.ocr.space/parse/image');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ['apikey: ' . $this->ocrApiKey]);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, [
+                'file'      => new \CURLFile($filePath),
+                'language'  => 'por', // Português
+                'isTable'   => 'false',
+                'OCREngine' => '2',
+            ]);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($httpCode === 200 && !empty($response)) {
+                $json = json_decode($response, true);
+                if (isset($json['ParsedResults'][0]['ParsedText'])) {
+                    return trim($json['ParsedResults'][0]['ParsedText']);
+                }
+            }
+        } catch (\Exception $e) {
+            // Em caso de offline/timeout
+        }
+
+        return '';
     }
 
     /**
