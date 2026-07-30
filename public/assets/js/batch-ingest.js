@@ -8,7 +8,7 @@ window.clearFullDatabase = function () {
         return;
     }
 
-    const baseUrl = window.BASE_URL || '';
+    const baseUrl = (window.BASE_URL || '/').replace(/\/+$/, '') + '/';
     fetch(baseUrl + 'api/limpar-banco-total', {
         method: 'POST',
         headers: { 'X-Requested-With': 'XMLHttpRequest' }
@@ -161,7 +161,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     formData.append(csrf.dataset.name || 'csrf_token', csrf.content);
                 }
 
-                const baseUrl = window.BASE_URL || '';
+                const baseUrl = (window.BASE_URL || '/').replace(/\/+$/, '') + '/';
                 const response = await fetch(baseUrl + 'api/documentos/upload-item', {
                     method: 'POST',
                     headers: { 'X-Requested-With': 'XMLHttpRequest' },
@@ -189,7 +189,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             } catch (err) {
                 item.status = 'error';
-                updateItemStatus(item.id, 'error', '❌ Falha de rede/servidor.', '<span class="badge-hypothesis" style="background:rgba(239,68,68,.15);color:var(--cbr-danger)">Erro</span>');
+                updateItemStatus(item.id, 'error', '❌ Falha de rede/servidor: ' + err.message, '<span class="badge-hypothesis" style="background:rgba(239,68,68,.15);color:var(--cbr-danger)">Erro</span>');
             }
 
             completedFiles++;

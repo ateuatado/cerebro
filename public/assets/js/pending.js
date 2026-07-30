@@ -18,6 +18,11 @@ document.addEventListener('DOMContentLoaded', function () {
     const btnProcessAll       = document.getElementById('btnProcessAll');
     const btnClearAllDatabase = document.getElementById('btnClearAllDatabase');
 
+    function getBaseUrl() {
+        const url = (typeof BASE_URL !== 'undefined' ? BASE_URL : (window.BASE_URL || '/'));
+        return url.replace(/\/+$/, '') + '/';
+    }
+
     // 1. Abrir Modal de Edição de Texto
     document.querySelectorAll('.btn-view-text').forEach(button => {
         button.addEventListener('click', function () {
@@ -78,7 +83,7 @@ document.addEventListener('DOMContentLoaded', function () {
         btnSaveText.disabled = true;
         btnSaveText.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Salvando...';
 
-        fetch(BASE_URL + 'api/documentos/pendentes/salvar-texto', {
+        fetch(getBaseUrl() + 'api/documentos/pendentes/salvar-texto', {
             method: 'POST',
             body: formData,
             headers: {
@@ -129,7 +134,7 @@ document.addEventListener('DOMContentLoaded', function () {
             targetBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Analisando por IA...';
         }
 
-        fetch(BASE_URL + `api/documentos/pendentes/extrair/${docId}`, {
+        fetch(getBaseUrl() + `api/documentos/pendentes/extrair/${docId}`, {
             method: 'POST',
             headers: {
                 'X-Requested-With': 'XMLHttpRequest'
@@ -176,7 +181,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             this.disabled = true;
 
-            fetch(BASE_URL + `documentos/${id}/deletar`, {
+            fetch(getBaseUrl() + `documentos/${id}/deletar`, {
                 method: 'POST',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
@@ -213,7 +218,7 @@ document.addEventListener('DOMContentLoaded', function () {
             btnClearAllDatabase.disabled = true;
             btnClearAllDatabase.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Zerando base...';
 
-            fetch(BASE_URL + 'api/limpar-banco-total', {
+            fetch(getBaseUrl() + 'api/limpar-banco-total', {
                 method: 'POST',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
@@ -253,7 +258,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (progressContainer) progressContainer.classList.remove('d-none');
             btnProcessAll.disabled = true;
 
-            fetch(BASE_URL + 'api/documentos/pendentes/processar-todos', {
+            fetch(getBaseUrl() + 'api/documentos/pendentes/processar-todos', {
                 method: 'POST',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
