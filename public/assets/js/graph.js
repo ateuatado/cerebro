@@ -11,27 +11,71 @@ const CerebroGraph = (() => {
 
     // Cores por tipo de entidade (espelham as variáveis CSS)
     const TYPE_COLORS = {
-        person:   { color: '#60a5fa', highlight: '#93c5fd', border: '#3b82f6', bg: 'rgba(96,165,250,0.15)' },
-        location: { color: '#34d399', highlight: '#6ee7b7', border: '#10b981', bg: 'rgba(52,211,153,0.15)' },
-        event:    { color: '#f472b6', highlight: '#f9a8d4', border: '#ec4899', bg: 'rgba(244,114,182,0.15)' },
-        document: { color: '#fb923c', highlight: '#fdb67a', border: '#f97316', bg: 'rgba(251,146,60,0.15)' },
+        person:   { color: '#60a5fa', highlight: '#93c5fd', border: '#3b82f6', bg: 'rgba(96,165,250,0.15)', name: 'Pessoa', icon: '👤' },
+        location: { color: '#34d399', highlight: '#6ee7b7', border: '#10b981', bg: 'rgba(52,211,153,0.15)', name: 'Local', icon: '📍' },
+        event:    { color: '#f472b6', highlight: '#f9a8d4', border: '#ec4899', bg: 'rgba(244,114,182,0.15)', name: 'Evento', icon: '📅' },
+        document: { color: '#fb923c', highlight: '#fdb67a', border: '#f97316', bg: 'rgba(251,146,60,0.15)', name: 'Documento', icon: '📄' },
     };
 
-    const TYPE_ICONS = {
-        person:   '👤',
-        location: '📍',
-        event:    '📅',
-        document: '📄',
-    };
+    function createNodeTitle(entity) {
+        const c = TYPE_COLORS[entity.type] || TYPE_COLORS.person;
+        const isConfirmed = entity.status === 'confirmed';
+        
+        const el = document.createElement('div');
+        el.className = 'cbr-vis-tooltip';
+        el.innerHTML = `
+            <div class="cbr-tt-header">
+                <div class="cbr-tt-icon" style="background:${c.bg};color:${c.color}">
+                    <span>${c.icon}</span>
+                </div>
+                <div>
+                    <div class="cbr-tt-name">${escapeHtml(entity.name)}</div>
+                    <div class="cbr-tt-sub">${c.name}</div>
+                </div>
+            </div>
+            <div class="cbr-tt-footer">
+                <span class="cbr-tt-badge ${isConfirmed ? 'confirmed' : 'hypothesis'}">
+                    ${isConfirmed ? '✅ Fato Confirmado' : '🟡 Hipótese da IA'}
+                </span>
+            </div>
+        `;
+        return el;
+    }
+
+    function createEdgeTitle(rel) {
+        const isHypothesis = rel.status !== 'confirmed';
+        const confidence   = Math.round((rel.confidence || 0.75) * 100);
+
+        const el = document.createElement('div');
+        el.className = 'cbr-vis-tooltip';
+        el.innerHTML = `
+            <div class="cbr-tt-header">
+                <div class="cbr-tt-name" style="color:var(--cbr-primary);font-size:.875rem">
+                    🔗 ${escapeHtml(rel.relationship_type)}
+                </div>
+            </div>
+            <div class="cbr-tt-footer" style="display:flex;justify-content:space-between;align-items:center;gap:.75rem">
+                <span style="font-size:.75rem;color:var(--cbr-text-subtle)">Confiança: <strong style="color:var(--cbr-text)">${confidence}%</strong></span>
+                <span class="cbr-tt-badge ${isHypothesis ? 'hypothesis' : 'confirmed'}">
+                    ${isHypothesis ? '🟡 Hipótese' : '✅ Confirmada'}
+                </span>
+            </div>
+        `;
+        return el;
+    }
+
+    function escapeHtml(str) {
+        return String(str || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
 
     function buildNodeOptions(entity) {
         const c = TYPE_COLORS[entity.type] || TYPE_COLORS.person;
         return {
             id:    entity.id,
             label: entity.name.length > 22 ? entity.name.substring(0, 20) + '…' : entity.name,
-            title: `<b>${entity.name}</b><br><small>${entity.type}</small><br><span>${entity.status === 'confirmed' ? '✅ Confirmado' : '🟡 Hipótese'}</span>`,
+            title: createNodeTitle(entity),
             shape: 'dot',
-            size:  entity.status === 'confirmed' ? 18 : 12,
+            size:  entity.status === 'confirmed' ? 20 : 14,
             color: {
                 background: c.bg,
                 border:     entity.status === 'confirmed' ? c.border : '#f59e0b',
@@ -43,16 +87,15 @@ const CerebroGraph = (() => {
                 size:  13,
                 face:  'Inter, system-ui, sans-serif',
             },
-            borderWidth:          entity.status === 'confirmed' ? 2 : 1.5,
-            borderWidthSelected:  3,
+            borderWidth:          entity.status === 'confirmed' ? 2.5 : 1.5,
+            borderWidthSelected:  3.5,
             shadow: {
                 enabled: true,
                 color:   'rgba(0,0,0,0.4)',
                 size:    6,
-                x:       0, y:       2,
+                x:       0, y: 2,
             },
             group: entity.type,
-            // Dados originais para filtro
             _type:   entity.type,
             _status: entity.status,
         };
@@ -66,52 +109,53 @@ const CerebroGraph = (() => {
             from:  rel.source_entity_id,
             to:    rel.target_entity_id,
             label: confidence < 100 ? rel.relationship_type + ' (' + confidence + '%)' : rel.relationship_type,
-            title: `<b>${rel.relationship_type}</b><br>Confiança: ${confidence}%<br>${isHypothesis ? '🟡 Hipótese' : '✅ Confirmada'}`,
+            title: createEdgeTitle(rel),
             arrows: rel.direction === 'directed' ? 'to' : '',
             dashes: isHypothesis,
             color: {
                 color:     isHypothesis ? '#f59e0b' : '#7c6af7',
                 highlight: '#9585ff',
                 hover:     '#9585ff',
-                opacity:   isHypothesis ? 0.6 : 0.85,
+                opacity:   isHypothesis ? 0.65 : 0.85,
             },
-            width:       isHypothesis ? 1 : 1.5,
+            width:       isHypothesis ? 1.2 : 2,
             font: {
-                color:       '#7a8099',
+                color:       '#94a3b8',
                 size:        11,
                 face:        'Inter, system-ui, sans-serif',
                 align:       'middle',
                 strokeWidth: 3,
-                strokeColor: '#1a1d2e',
+                strokeColor: '#0f172a',
             },
-            smooth: { type: 'curvedCW', roundness: 0.15 },
+            smooth: { type: 'curvedCW', roundness: 0.2 },
             _status: rel.status,
         };
     }
 
     function getOptions(theme) {
-        const isDark = theme !== 'light';
         return {
             nodes: {
-                scaling: { min: 10, max: 30 },
+                scaling: { min: 12, max: 32 },
             },
             edges: {
                 scaling: { min: 1, max: 3 },
             },
             physics: {
                 enabled: true,
+                solver: 'barnesHut',
                 barnesHut: {
-                    gravitationalConstant: -3000,
-                    centralGravity:        0.3,
-                    springLength:          140,
-                    springConstant:        0.04,
+                    gravitationalConstant: -18000, // Repulsão forte para afastar nós
+                    centralGravity:        0.05,   // Baixa gravidade central para evitar aglomeração
+                    springLength:          240,    // Distância de 240px entre conexões
+                    springConstant:        0.02,
                     damping:               0.09,
+                    avoidOverlap:          0.8,
                 },
-                stabilization: { iterations: 200, updateInterval: 25 },
+                stabilization: { iterations: 250, updateInterval: 25 },
             },
             interaction: {
                 hover:             true,
-                tooltipDelay:      150,
+                tooltipDelay:      100,
                 navigationButtons: false,
                 keyboard:          true,
                 zoomView:          true,
@@ -125,7 +169,6 @@ const CerebroGraph = (() => {
         const container = document.getElementById(containerId);
         if (!container) return;
 
-        // Detectar tema atual
         const theme = document.documentElement.getAttribute('data-theme') || 'dark';
 
         allNodes = (data.entities || []).map(buildNodeOptions);
@@ -136,7 +179,7 @@ const CerebroGraph = (() => {
 
         network = new vis.Network(container, { nodes: nodesDS, edges: edgesDS }, getOptions(theme));
 
-        // Navegação ao clicar em nó
+        // Navegação em duplo clique
         network.on('doubleClick', params => {
             if (params.nodes.length > 0) {
                 const nodeId = params.nodes[0];
@@ -145,7 +188,7 @@ const CerebroGraph = (() => {
             }
         });
 
-        // Single-click: dispara callback externo (painel de detalhe)
+        // Clique simples (painel lateral)
         network.on('click', params => {
             if (params.nodes.length > 0 && typeof nodeClickCb === 'function') {
                 nodeClickCb(params.nodes[0]);
@@ -157,7 +200,6 @@ const CerebroGraph = (() => {
             network.setOptions({ physics: { enabled: false } });
         });
 
-        // Atualizar ao trocar tema
         document.addEventListener('click', e => {
             if (e.target.closest('#theme-toggle')) {
                 setTimeout(() => {
