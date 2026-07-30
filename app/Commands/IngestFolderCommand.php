@@ -106,12 +106,13 @@ class IngestFolderCommand extends BaseCommand
                 if ($existingDoc) {
                     $documentId = $existingDoc['id'];
                     $currentAttrs = is_string($existingDoc['attributes']) ? (json_decode($existingDoc['attributes'], true) ?? []) : ($existingDoc['attributes'] ?? []);
-                    $currentAttrs['descricao'] = mb_substr($content, 0, 4000);
-                    $currentAttrs['formato'] = strtoupper($ext);
+                    $currentAttrs['caminho_arquivo'] = realpath($filePath);
+                    $currentAttrs['descricao']       = mb_substr($content, 0, 4000);
+                    $currentAttrs['formato']         = strtoupper($ext);
                     $entityModel->update($documentId, [
                         'attributes' => json_encode($currentAttrs, JSON_UNESCAPED_UNICODE)
                     ]);
-                    CLI::write("  └─ Documento existente (ID: {$documentId}). Atualizando com OCR e re-processando...", 'yellow');
+                    CLI::write("  └─ Documento existente (ID: {$documentId}). Vinculando arquivo original e re-processando...", 'yellow');
                 } else {
                     // Cadastrar novo documento
                     $documentId = $docModel->insert([
