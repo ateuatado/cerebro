@@ -55,11 +55,13 @@ $routes->group('documentos', ['filter' => 'auth'], function ($routes) {
 $routes->post('api/documentos/upload-item', 'BatchIngestController::uploadItem', ['filter' => 'auth']);
 $routes->post('documentos/api/documentos/upload-item', 'BatchIngestController::uploadItem', ['filter' => 'auth']);
 
-// ─── Workspace Interativo de Transcrição Histórica — Spec 7 ──────────
-$routes->get('api/documentos/(:num)/pagina/(:num)/imagem',          'DocumentReviewController::getPageImage/$1/$2', ['filter' => 'auth']);
-$routes->post('api/documentos/(:num)/pagina/(:num)/girar',           'DocumentReviewController::rotatePage/$1/$2', ['filter' => 'auth']);
-$routes->post('api/documentos/(:num)/pagina/(:num)/extrair-regiao',  'DocumentReviewController::extractRegion/$1/$2', ['filter' => 'auth']);
-$routes->post('api/documentos/(:num)/pagina/(:num)/salvar-texto',    'DocumentReviewController::savePageText/$1/$2', ['filter' => 'auth']);
+// ─── Workspace Interativo de Transcrição Histórica — Spec 7 & Spec 8 ──
+$routes->get('api/documentos/(:num)/pagina/(:num)/imagem',                  'DocumentReviewController::getPageImage/$1/$2', ['filter' => 'auth']);
+$routes->post('api/documentos/(:num)/pagina/(:num)/girar',                   'DocumentReviewController::rotatePage/$1/$2', ['filter' => 'auth']);
+$routes->post('api/documentos/(:num)/pagina/(:num)/extrair-regiao',          'DocumentReviewController::extractRegion/$1/$2', ['filter' => 'auth']);
+$routes->post('api/documentos/(:num)/pagina/(:num)/extrair-entidades-regiao', 'DocumentReviewController::extractEntitiesFromRegion/$1/$2', ['filter' => 'auth']);
+$routes->post('api/documentos/(:num)/confirmar-entidades-regiao',             'DocumentReviewController::confirmRegionEntities/$1', ['filter' => 'auth']);
+$routes->post('api/documentos/(:num)/pagina/(:num)/salvar-texto',            'DocumentReviewController::savePageText/$1/$2', ['filter' => 'auth']);
 
 // ─── Documentos Pendentes de Extração — Spec 6 ───────────────────────
 $routes->get('documentos/pendentes',                       'PendingExtractionController::index', ['filter' => 'auth']);
