@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Models\EntityModel;
 use App\Services\DocumentParserService;
 use App\Services\DeepSeekService;
+use App\Services\GeminiVisionService;
 
 /**
  * DocumentReviewController — Workspace Interativo de Transcrição Histórica (Spec 7 & Spec 8)
@@ -15,12 +16,14 @@ class DocumentReviewController extends BaseController
     private EntityModel $entityModel;
     private DocumentParserService $parserService;
     private DeepSeekService $deepSeekService;
+    private GeminiVisionService $geminiService;
 
     public function __construct()
     {
         $this->entityModel     = new EntityModel();
         $this->parserService   = new DocumentParserService();
         $this->deepSeekService = new DeepSeekService();
+        $this->geminiService   = new GeminiVisionService();
     }
 
     private function getAbsoluteFilePath(array $attributes): string
@@ -66,6 +69,35 @@ class DocumentReviewController extends BaseController
         }
 
         return ($targetImg && file_exists($targetImg)) ? $targetImg : null;
+    }
+
+    private function saveBase64CropImage(?string $base64Data): ?string
+    {
+        if (empty($base64Data)) {
+            log_message('debug', 'saveBase64CropImage: base64Data vazio');
+            return null;
+        }
+
+        // Log do início dos dados recebidos para depuração
+        $prefix = substr($base64Data, 0, 100);
+        log_message('debug', 'saveBase64CropImage: prefix=' . $prefix . ', length=' . strlen($base64Data));
+
+        if (preg_match('/^data:image\/(\w+);base64,/', $base64Data, $matches)) {
+            $imageType = $matches[1];
+            $data = substr($base64Data, strpos($base64Data, ',') + 1);
+            $decoded = base64_decode($data, true);
+            if ($decoded !== false && strlen($decoded) > 50) {
+                $cropFile = str_replace('\\', '/', WRITEPATH . 'uploads/crop_' . uniqid() . '.jpg');
+                file_put_contents($cropFile, $decoded);
+                log_message('debug', 'saveBase64CropImage: salvo em ' . $cropFile . ' tamanho=' . strlen($decoded));
+                return $cropFile;
+            }
+            log_message('debug', 'saveBase64CropImage: decoded falhou ou muito pequeno (len=' . strlen($decoded ?? '') . ')');
+        } else {
+            log_message('debug', 'saveBase64CropImage: regex nao correspondeu');
+        }
+
+        return null;
     }
 
     /**
@@ -136,121 +168,199 @@ class DocumentReviewController extends BaseController
      */
     public function rotatePage(int $id, int $page)
     {
-        $degrees = (int) ($this->request->getPost('degrees') ?? 90);
-        $doc     = $this->entityModel->find($id);
+        try {
+            $degrees = (int) ($this->request->getPost('degrees') ?? 90);
+            $doc     = $this->entityModel->find($id);
 
-        if (!$doc) {
-            return $this->response->setJSON(['success' => false, 'error' => 'Documento não encontrado.']);
-        }
+            if (!$doc) {
+                return $this->response->setJSON(['success' => false, 'error' => 'Documento não encontrado.']);
+            }
 
-        $attributes = is_string($doc['attributes']) ? json_decode($doc['attributes'], true) : ($doc['attributes'] ?? []);
-        $filePath   = $this->getAbsoluteFilePath($attributes);
-        $targetImg  = $this->getTargetPageImage($id, $page, $filePath);
+            $attributes = is_string($doc['attributes']) ? json_decode($doc['attributes'], true) : ($doc['attributes'] ?? []);
+            $filePath   = $this->getAbsoluteFilePath($attributes);
+            $targetImg  = $this->getTargetPageImage($id, $page, $filePath);
 
-        if (!$targetImg || !file_exists($targetImg)) {
-            return $this->response->setJSON(['success' => false, 'error' => 'Imagem da página não encontrada para rotação.']);
-        }
+            if (!$targetImg || !file_exists($targetImg)) {
+                return $this->response->setJSON(['success' => false, 'error' => 'Imagem da página não encontrada para rotação.']);
+            }
 
         $ok = $this->parserService->rotateImageFile($targetImg, $degrees);
 
-        if (!$ok) {
-            return $this->response->setJSON(['success' => false, 'error' => 'Falha ao rotacionar imagem da página.']);
-        }
+            if (!$ok) {
+                return $this->response->setJSON(['success' => false, 'error' => 'Falha ao rotacionar imagem da página.']);
+            }
 
         $newOcrText = $this->parserService->performOcr($targetImg, 'jpg');
+            // Sanitizar UTF-8 para evitar "Malformed UTF-8 characters" no JSON
+            $newOcrText = mb_convert_encoding($newOcrText, 'UTF-8', 'UTF-8');
 
-        return $this->response->setJSON([
-            'success'   => true,
-            'message'   => "Página {$page} rotacionada {$degrees}° com sucesso!",
-            'ocrText'   => $newOcrText,
-            'timestamp' => time(),
-        ]);
+            return $this->response->setJSON([
+                'success'   => true,
+                'message'   => "Página {$page} rotacionada {$degrees}° com sucesso!",
+                'ocrText'   => $newOcrText,
+                'timestamp' => time(),
+            ]);
+        } catch (\Throwable $e) {
+            log_message('error', 'rotatePage error: ' . $e->getMessage());
+            return $this->response->setJSON(['success' => false, 'error' => 'Erro interno no servidor: ' . $e->getMessage()]);
+        }
     }
 
     /**
      * Extrai o texto manuscrito da região selecionada (/api/documentos/{id}/pagina/{page}/extrair-regiao)
+     * Usa Gemini Vision para ler a imagem do recorte diretamente (muito superior a OCR tradicional para manuscritos)
      */
     public function extractRegion(int $id, int $page)
     {
-        $x       = (int) $this->request->getPost('x');
-        $y       = (int) $this->request->getPost('y');
-        $w       = (int) $this->request->getPost('width');
-        $h       = (int) $this->request->getPost('height');
-        $canvasW = (int) $this->request->getPost('canvas_w');
-        $canvasH = (int) $this->request->getPost('canvas_h');
+        try {
+            $doc = $this->entityModel->find($id);
+            if (!$doc) {
+                return $this->response->setJSON(['success' => false, 'error' => 'Documento não encontrado.']);
+            }
 
-        $doc = $this->entityModel->find($id);
-        if (!$doc) {
-            return $this->response->setJSON(['success' => false, 'error' => 'Documento não encontrado.']);
+            $base64Crop = $this->request->getPost('crop_image_base64');
+
+            if (empty($base64Crop)) {
+                return $this->response->setJSON(['success' => false, 'error' => 'Nenhum recorte de imagem recebido.']);
+            }
+
+            // Nível 1: Gemini Vision (leitura superior de manuscritos)
+            if ($this->geminiService->isAvailable()) {
+                try {
+                    $transcription = $this->geminiService->transcribeImage(
+                        $doc['name'] . ' - Página ' . $page,
+                        $base64Crop
+                    );
+
+                    if (!empty(trim($transcription))) {
+                        return $this->response->setJSON([
+                            'success' => true,
+                            'text'    => $transcription,
+                        ]);
+                    }
+                } catch (\Throwable $geminiError) {
+                    log_message('warning', 'Gemini indisponível, tentando OCR + DeepSeek: ' . $geminiError->getMessage());
+                }
+            }
+
+            // Nível 2: Salvar recorte como arquivo -> OCR local -> DeepSeek processa o texto
+            $cropFile = $this->saveBase64CropImage($base64Crop);
+            if ($cropFile && file_exists($cropFile)) {
+                $ocrText = $this->parserService->performOcr($cropFile, 'jpg');
+                if (!empty(trim($ocrText))) {
+                    try {
+                        $result = $this->deepSeekService->extractFromCropText(
+                            $doc['name'] . ' - Página ' . $page,
+                            $ocrText
+                        );
+                        $transcription = $result['transcription'] ?? $ocrText;
+                        if (!empty(trim($transcription))) {
+                            @unlink($cropFile);
+                            return $this->response->setJSON([
+                                'success' => true,
+                                'text'    => $transcription,
+                            ]);
+                        }
+                    } catch (\Throwable $dsError) {
+                        log_message('warning', 'DeepSeek texto falhou, usando OCR puro: ' . $dsError->getMessage());
+                    }
+                }
+
+                // Nível 3: OCR puro (fallback final)
+                if (!empty(trim($ocrText))) {
+                    @unlink($cropFile);
+                    return $this->response->setJSON([
+                        'success' => true,
+                        'text'    => $ocrText,
+                    ]);
+                }
+                @unlink($cropFile);
+            }
+
+            // Nenhum método funcionou
+            return $this->response->setJSON([
+                'success' => true,
+                'text'    => '[Trecho selecionado sem texto reconhecido — os serviços de IA e OCR não estão disponíveis no momento.]',
+            ]);
+        } catch (\Throwable $e) {
+            log_message('error', 'extractRegion error: ' . $e->getMessage());
+            return $this->response->setJSON(['success' => false, 'error' => 'Erro interno no servidor: ' . $e->getMessage()]);
         }
-
-        $attributes = is_string($doc['attributes']) ? json_decode($doc['attributes'], true) : ($doc['attributes'] ?? []);
-        $filePath   = $this->getAbsoluteFilePath($attributes);
-        $targetImg  = $this->getTargetPageImage($id, $page, $filePath);
-
-        if (!$targetImg || !file_exists($targetImg)) {
-            return $this->response->setJSON(['success' => false, 'error' => 'Imagem da página não encontrada para recorte.']);
-        }
-
-        $cropFile = $this->parserService->cropImageRegion($targetImg, $x, $y, $w, $h, $canvasW, $canvasH);
-        if (!$cropFile || !file_exists($cropFile)) {
-            return $this->response->setJSON(['success' => false, 'error' => 'Não foi possível recortar a área selecionada.']);
-        }
-
-        $croppedText = $this->parserService->performOcr($cropFile, 'jpg');
-        @unlink($cropFile);
-
-        if (empty(trim($croppedText))) {
-            $croppedText = "[Trecho selecionado sem texto reconhecido de forma legível pela IA]";
-        }
-
-        return $this->response->setJSON([
-            'success' => true,
-            'text'    => $croppedText,
-        ]);
     }
 
     /**
      * Spec 8: Extrai Entidades & Grafo a partir da Seleção de Região em 1-Clique (/api/documentos/{id}/pagina/{page}/extrair-entidades-regiao)
+     * Usa Gemini Vision para leitura da imagem + DeepSeek para extração de entidades
      */
     public function extractEntitiesFromRegion(int $id, int $page)
     {
-        $x       = (int) $this->request->getPost('x');
-        $y       = (int) $this->request->getPost('y');
-        $w       = (int) $this->request->getPost('width');
-        $h       = (int) $this->request->getPost('height');
-        $canvasW = (int) $this->request->getPost('canvas_w');
-        $canvasH = (int) $this->request->getPost('canvas_h');
+        try {
+            $doc = $this->entityModel->find($id);
+            if (!$doc) {
+                return $this->response->setJSON(['success' => false, 'error' => 'Documento não encontrado.']);
+            }
 
-        $doc = $this->entityModel->find($id);
-        if (!$doc) {
-            return $this->response->setJSON(['success' => false, 'error' => 'Documento não encontrado.']);
+            $base64Crop = $this->request->getPost('crop_image_base64');
+
+            if (empty($base64Crop)) {
+                return $this->response->setJSON(['success' => false, 'error' => 'Nenhum recorte de imagem recebido.']);
+            }
+
+            // Tenta usar Gemini Vision para leitura + DeepSeek para entidades
+            if ($this->geminiService->isAvailable()) {
+                try {
+                    $aiResult = $this->geminiService->extractFromImage(
+                        $doc['name'] . ' - Página ' . $page,
+                        $base64Crop
+                    );
+
+                    if (!empty($aiResult['transcription'])) {
+                        return $this->response->setJSON([
+                            'success'       => true,
+                            'transcription' => $aiResult['transcription'],
+                            'entities'      => $aiResult['entities'] ?? [],
+                            'relationships' => $aiResult['relationships'] ?? [],
+                        ]);
+                    }
+                } catch (\Throwable $geminiError) {
+                    log_message('warning', 'Gemini indisponível, usando DeepSeek fallback: ' . $geminiError->getMessage());
+                }
+            }
+
+            // Fallback: OCR local -> DeepSeek extrai entidades do texto
+            $cropFile = $this->saveBase64CropImage($base64Crop);
+            if ($cropFile && file_exists($cropFile)) {
+                $ocrText = $this->parserService->performOcr($cropFile, 'jpg');
+                @unlink($cropFile);
+
+                if (!empty(trim($ocrText))) {
+                    try {
+                        $aiResult = $this->deepSeekService->extractFromCropText(
+                            $doc['name'] . ' - Página ' . $page,
+                            $ocrText
+                        );
+                        return $this->response->setJSON([
+                            'success'       => true,
+                            'transcription' => $aiResult['transcription'] ?? $ocrText,
+                            'entities'      => $aiResult['entities'] ?? [],
+                            'relationships' => $aiResult['relationships'] ?? [],
+                        ]);
+                    } catch (\Throwable $dsError) {
+                        log_message('warning', 'DeepSeek entidades falhou: ' . $dsError->getMessage());
+                    }
+                }
+            }
+
+            return $this->response->setJSON([
+                'success' => true,
+                'transcription' => '[Não foi possível extrair texto deste recorte — os serviços de IA e OCR não estão disponíveis no momento.]',
+                'entities'      => [],
+                'relationships' => [],
+            ]);
+        } catch (\Throwable $e) {
+            log_message('error', 'extractEntitiesFromRegion error: ' . $e->getMessage());
+            return $this->response->setJSON(['success' => false, 'error' => 'Erro interno no servidor: ' . $e->getMessage()]);
         }
-
-        $attributes = is_string($doc['attributes']) ? json_decode($doc['attributes'], true) : ($doc['attributes'] ?? []);
-        $filePath   = $this->getAbsoluteFilePath($attributes);
-        $targetImg  = $this->getTargetPageImage($id, $page, $filePath);
-
-        if (!$targetImg || !file_exists($targetImg)) {
-            return $this->response->setJSON(['success' => false, 'error' => 'Imagem da página não encontrada para extração.']);
-        }
-
-        $cropFile = $this->parserService->cropImageRegion($targetImg, $x, $y, $w, $h, $canvasW, $canvasH);
-        if (!$cropFile || !file_exists($cropFile)) {
-            return $this->response->setJSON(['success' => false, 'error' => 'Falha ao recortar a área selecionada.']);
-        }
-
-        $rawText = $this->parserService->performOcr($cropFile, 'jpg');
-        @unlink($cropFile);
-
-        $aiResult = $this->deepSeekService->extractFromCropText($doc['name'], $rawText);
-
-        return $this->response->setJSON([
-            'success'       => true,
-            'transcription' => $aiResult['transcription'] ?? $rawText,
-            'entities'      => $aiResult['entities'] ?? [],
-            'relationships' => $aiResult['relationships'] ?? [],
-        ]);
     }
 
     /**
