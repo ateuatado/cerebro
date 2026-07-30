@@ -1,0 +1,30 @@
+/* Cerebro — review-workspace.css — Estilos Locais do Workspace de Revisão (Spec 7) */
+/* Assets locais, sem CDN — AGENTS.md */
+
+.cbr-viewer-toolbar button {
+    font-size: 0.8125rem;
+    padding: 0.25rem 0.625rem;
+    font-weight: 500;
+}
+
+.cbr-viewer-canvas {
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+#cropOverlay {
+    pointer-events: none;
+    border: 2px dashed #f59e0b !important;
+    background: rgba(245, 158, 11, 0.2) !important;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.4);
+}
+
+.crop-mode #pageImageViewer {
+    cursor: crosshair !important;
+}
+
+#transcriptionTextarea:focus {
+    border-color: var(--cbr-primary) !important;
+    box-shadow: 0 0 0 3px var(--cbr-primary-dim) !important;
+    outline: none;
+}
