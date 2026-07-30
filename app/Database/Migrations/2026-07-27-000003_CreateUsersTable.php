@@ -10,7 +10,7 @@ class CreateUsersTable extends Migration
     {
         // 3.1 Tabela: users
         $this->db->query("
-            CREATE TABLE users (
+            CREATE TABLE IF NOT EXISTS users (
                 id              SERIAL PRIMARY KEY,
                 name            TEXT NOT NULL,
                 email           TEXT NOT NULL UNIQUE,
@@ -24,9 +24,9 @@ class CreateUsersTable extends Migration
         ");
 
         // Índices
-        $this->db->query("CREATE INDEX idx_users_email  ON users (email)");
-        $this->db->query("CREATE INDEX idx_users_role   ON users (role)");
-        $this->db->query("CREATE INDEX idx_users_active ON users (active)");
+        $this->db->query("CREATE INDEX IF NOT EXISTS idx_users_email  ON users (email)");
+        $this->db->query("CREATE INDEX IF NOT EXISTS idx_users_role   ON users (role)");
+        $this->db->query("CREATE INDEX IF NOT EXISTS idx_users_active ON users (active)");
 
         // 3.4 Trigger updated_at (reusa função da Spec 1)
         $this->db->query("
@@ -38,6 +38,7 @@ class CreateUsersTable extends Migration
             END;
             \$\$ LANGUAGE plpgsql
         ");
+        $this->db->query("DROP TRIGGER IF EXISTS trg_users_updated_at ON users");
         $this->db->query("
             CREATE TRIGGER trg_users_updated_at
                 BEFORE UPDATE ON users
