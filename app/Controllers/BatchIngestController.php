@@ -69,7 +69,7 @@ class BatchIngestController extends BaseController
             $parseResult = $docParser->parseFile($savedFilePath, $ext);
             $content     = $parseResult['text'] ?? '';
 
-            if (empty(trim($content))) {
+            if (empty(trim($content)) && !in_array($ext, ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'bmp', 'tiff', 'tif'])) {
                 return $this->response->setJSON([
                     'success'  => false,
                     'fileName' => $fileName,
@@ -114,6 +114,16 @@ class BatchIngestController extends BaseController
             }
 
             // 3. ESTÁGIO 2: Tentar disparar a extração tokenizada por IA em blocos
+            if (empty(trim($content))) {
+                return $this->response->setJSON([
+                    'success'    => true,
+                    'fileName'   => $fileName,
+                    'documentId' => $documentId,
+                    'status'     => 'pending',
+                    'message'    => 'Documento salvo no repositório. Disponível no Workspace Interativo para transcrição visual.',
+                ]);
+            }
+
             try {
                 $result = $this->extractionService->extractFromDocument($documentId, $userId);
 

@@ -119,13 +119,27 @@ class DocumentParserService
     }
 
     /**
-     * Tenta extrair texto nativo de um PDF usando pdftotext (Poppler).
+     * Tenta extrair texto nativo de um PDF usando Smalot\PdfParser (PHP nativo) ou pdftotext (Poppler).
      */
     private function extractPdfText(string $pdfPath): string
     {
         $pdfPath = str_replace('\\', '/', $pdfPath);
 
-        // Tentar pdftotext (Poppler) — comum em Linux e pode estar no PATH do Windows
+        // 1. Tentar Smalot\PdfParser (PHP nativo, via composer)
+        if (class_exists(\Smalot\PdfParser\Parser::class)) {
+            try {
+                $parser = new \Smalot\PdfParser\Parser();
+                $pdf = $parser->parseFile($pdfPath);
+                $text = trim($pdf->getText());
+                if (!empty($text)) {
+                    return $text;
+                }
+            } catch (\Throwable $e) {
+                log_message('warning', 'Smalot PdfParser warning: ' . $e->getMessage());
+            }
+        }
+
+        // 2. Tentar pdftotext (Poppler) — comum em Linux e pode estar no PATH do Windows
         $cmd = 'pdftotext ' . escapeshellarg($pdfPath) . ' - 2>&1';
         exec($cmd, $output, $returnVar);
         if ($returnVar === 0 && !empty($output)) {
