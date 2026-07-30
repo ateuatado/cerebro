@@ -23,6 +23,28 @@ class DocumentReviewController extends BaseController
         $this->deepSeekService = new DeepSeekService();
     }
 
+    private function getAbsoluteFilePath(array $attributes): string
+    {
+        $rel = $attributes['caminho_arquivo'] ?? '';
+        if (empty($rel)) return '';
+
+        if (file_exists($rel)) {
+            return $rel;
+        }
+
+        $fullPath = WRITEPATH . 'uploads/' . ltrim($rel, '/\\');
+        if (file_exists($fullPath)) {
+            return $fullPath;
+        }
+
+        $docPath = WRITEPATH . 'uploads/documents/' . ltrim(basename($rel), '/\\');
+        if (file_exists($docPath)) {
+            return $docPath;
+        }
+
+        return '';
+    }
+
     /**
      * Tela principal do workspace de transcrição e revisão (/documentos/{id}/revisar)
      */
@@ -35,11 +57,11 @@ class DocumentReviewController extends BaseController
         }
 
         $attributes  = is_string($doc['attributes']) ? json_decode($doc['attributes'], true) : ($doc['attributes'] ?? []);
-        $filePath    = WRITEPATH . 'uploads/' . ($attributes['caminho_arquivo'] ?? '');
+        $filePath    = $this->getAbsoluteFilePath($attributes);
         $cacheDir    = WRITEPATH . 'uploads/page_cache_' . $id;
 
         $totalPages = 1;
-        if (file_exists($filePath)) {
+        if (!empty($filePath) && file_exists($filePath)) {
             $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
             if ($ext === 'pdf') {
                 $renderRes  = $this->parserService->renderPdfPagesToCache($filePath, $cacheDir);
@@ -68,10 +90,10 @@ class DocumentReviewController extends BaseController
         }
 
         $attributes = is_string($doc['attributes']) ? json_decode($doc['attributes'], true) : ($doc['attributes'] ?? []);
-        $filePath   = WRITEPATH . 'uploads/' . ($attributes['caminho_arquivo'] ?? '');
+        $filePath   = $this->getAbsoluteFilePath($attributes);
 
-        if (!file_exists($filePath)) {
-            return $this->response->setStatusCode(404)->setBody('Arquivo não encontrado.');
+        if (empty($filePath) || !file_exists($filePath)) {
+            return $this->response->setStatusCode(404)->setBody('Arquivo não encontrado no servidor.');
         }
 
         $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
@@ -91,7 +113,8 @@ class DocumentReviewController extends BaseController
 
         $pageFile = $cacheDir . '/page_' . $page . '.jpg';
         if (!file_exists($pageFile)) {
-            $pageFile = glob($cacheDir . '/page_*.jpg')[0] ?? null;
+            $pages = glob($cacheDir . '/page_*.jpg');
+            $pageFile = $pages[0] ?? null;
         }
 
         if ($pageFile && file_exists($pageFile)) {
@@ -114,7 +137,7 @@ class DocumentReviewController extends BaseController
         }
 
         $attributes = is_string($doc['attributes']) ? json_decode($doc['attributes'], true) : ($doc['attributes'] ?? []);
-        $filePath   = WRITEPATH . 'uploads/' . ($attributes['caminho_arquivo'] ?? '');
+        $filePath   = $this->getAbsoluteFilePath($attributes);
         $ext        = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
 
         $targetImg = null;
@@ -163,7 +186,7 @@ class DocumentReviewController extends BaseController
         }
 
         $attributes = is_string($doc['attributes']) ? json_decode($doc['attributes'], true) : ($doc['attributes'] ?? []);
-        $filePath   = WRITEPATH . 'uploads/' . ($attributes['caminho_arquivo'] ?? '');
+        $filePath   = $this->getAbsoluteFilePath($attributes);
         $ext        = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
 
         $targetImg = null;
@@ -214,7 +237,7 @@ class DocumentReviewController extends BaseController
         }
 
         $attributes = is_string($doc['attributes']) ? json_decode($doc['attributes'], true) : ($doc['attributes'] ?? []);
-        $filePath   = WRITEPATH . 'uploads/' . ($attributes['caminho_arquivo'] ?? '');
+        $filePath   = $this->getAbsoluteFilePath($attributes);
         $ext        = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
 
         $targetImg = null;
@@ -237,7 +260,6 @@ class DocumentReviewController extends BaseController
         $rawText = $this->parserService->performOcr($cropFile, 'jpg');
         @unlink($cropFile);
 
-        // Chamar a IA com o texto HTR do recorte
         $aiResult = $this->deepSeekService->extractFromCropText($doc['name'], $rawText);
 
         return $this->response->setJSON([
@@ -268,7 +290,6 @@ class DocumentReviewController extends BaseController
         $createdRelsCount     = 0;
         $entityMap            = [];
 
-        // 1. Gravar Entidades Aprovadas como 'hypothesis'
         foreach ($entities as $e) {
             $name = trim($e['name'] ?? '');
             $type = $e['type'] ?? 'person';
@@ -298,7 +319,6 @@ class DocumentReviewController extends BaseController
             }
         }
 
-        // 2. Gravar Relações Aprovadas como 'hypothesis'
         foreach ($rels as $r) {
             $srcName = trim($r['source_name'] ?? '');
             $tgtName = trim($r['target_name'] ?? '');
@@ -329,7 +349,6 @@ class DocumentReviewController extends BaseController
             $createdRelsCount++;
         }
 
-        // 3. Anexar transcrição ao repositório do documento
         if (!empty(trim($transcript))) {
             $attributes = is_string($doc['attributes']) ? json_decode($doc['attributes'], true) : ($doc['attributes'] ?? []);
             $attributes['conteudo_transcrito'] = ($attributes['conteudo_transcrito'] ?? '') . "\n\n[RECURSO HTR REGIONAL]:\n" . $transcript;
