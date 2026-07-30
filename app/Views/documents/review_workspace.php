@@ -1,8 +1,8 @@
 <?php
 /**
  * Cerebro — Views/documents/review_workspace.php
- * Workspace Interativo de Transcrição Histórica (Spec 7)
- * Permite rotação de página, seleção por região (Crop Tool com IA) e edição da transcrição.
+ * Workspace Interativo de Transcrição Histórica (Spec 7 & Spec 8)
+ * Permite rotação de página, seleção por região (Crop Tool com IA) e extração de entidades em 1-clique.
  */
 $auth = new \App\Services\AuthService();
 $role = $auth->currentUser()['role'] ?? 'colaborador';
@@ -84,7 +84,10 @@ ob_start();
                             <i class="bi bi-crop me-1"></i> Recortar Região
                         </button>
                         <button type="button" class="btn btn-sm btn-warning d-none" id="btnExtractCrop" title="Submeter área selecionada à IA">
-                            <i class="bi bi-cpu me-1"></i> Extrair Região (IA)
+                            <i class="bi bi-cpu me-1"></i> Extrair Texto (IA)
+                        </button>
+                        <button type="button" class="btn btn-sm btn-success d-none" id="btnExtractRegionEntities" title="Extrair Entidades e Relações do Recorte para o Grafo">
+                            <i class="bi bi-diagram-3-fill me-1"></i> ✨ Extrair Entidades (IA)
                         </button>
                     </div>
 
@@ -150,6 +153,56 @@ ob_start();
 
     </div>
 
+</div>
+
+<!-- Modal de Pre-visualização & Aprovação de Entidades da Região (Spec 8) -->
+<div class="modal fade" id="modalRegionEntities" tabindex="-1" aria-labelledby="modalRegionEntitiesLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content" style="background:var(--cbr-surface-1);color:var(--cbr-text);border:1px solid var(--cbr-border)">
+            <div class="modal-header border-bottom" style="background:var(--cbr-surface-2)">
+                <h5 class="modal-title fs-6 fw-bold" id="modalRegionEntitiesLabel">
+                    <i class="bi bi-diagram-3-fill text-success me-2"></i>
+                    Entidades & Grafo Encontrados na Região
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body p-3">
+                
+                <!-- Transcrição da Região -->
+                <div class="mb-3">
+                    <label class="form-label text-subtle fw-semibold" style="font-size:.8125rem">Transcrição HTR da Área Selecionada:</label>
+                    <textarea id="modalRegionTranscript" class="form-control font-monospace" style="height:90px;font-size:.8125rem;background:var(--cbr-surface-2);color:var(--cbr-text);border-color:var(--cbr-border)"></textarea>
+                </div>
+
+                <!-- Entidades Identificadas -->
+                <div class="mb-3">
+                    <h6 class="fw-bold" style="font-size:.875rem;color:var(--cbr-primary)">
+                        <i class="bi bi-people-fill me-1"></i> Entidades Descobertas:
+                    </h6>
+                    <div id="modalRegionEntitiesList" class="row g-2">
+                        <!-- Preenchido via JS -->
+                    </div>
+                </div>
+
+                <!-- Conexões do Grafo -->
+                <div>
+                    <h6 class="fw-bold" style="font-size:.875rem;color:var(--cbr-accent)">
+                        <i class="bi bi-share-fill me-1"></i> Relações para o Grafo:
+                    </h6>
+                    <ul id="modalRegionRelsList" class="list-group list-group-flush" style="font-size:.8125rem">
+                        <!-- Preenchido via JS -->
+                    </ul>
+                </div>
+
+            </div>
+            <div class="modal-footer border-top" style="background:var(--cbr-surface-2)">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success btn-sm d-flex align-items-center gap-1" id="btnConfirmRegionEntities">
+                    <i class="bi bi-check-circle-fill"></i> Confirmar e Adicionar ao Grafo
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <?php
