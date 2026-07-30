@@ -28,6 +28,61 @@ class ExtractionController extends BaseController
     }
 
     /**
+     * POST /documentos/(:num)/vincular-arquivo
+     * Recebe a foto/imagem enviada diretamente da tela de revisão, salva, roda OCR e extrai com IA.
+     */
+    public function attachFile(int $documentId)
+    {
+        $doc = $this->entityModel->find($documentId);
+        if (!$doc || $doc['type'] !== 'document') {
+            session()->setFlashdata('error', 'Documento não encontrado.');
+            return redirect()->to('documentos');
+        }
+
+        $file = $this->request->getFile('file');
+        if (!$file || !$file->isValid()) {
+            session()->setFlashdata('error', 'Selecione um arquivo de imagem (JPG, PNG) ou PDF válido.');
+            return redirect()->to('documentos/' . $documentId . '/revisar');
+        }
+
+        try {
+            $uploadDir = WRITEPATH . 'uploads/documents/';
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0755, true);
+            }
+
+            $ext = strtolower($file->getClientExtension());
+            $savedFileName = time() . '_' . preg_replace('/[^a-zA-Z0-9_\.-]/', '_', $file->getClientName());
+            $file->move($uploadDir, $savedFileName);
+            $savedFilePath = $uploadDir . $savedFileName;
+
+            // 1. Roda OCR + Parser de Texto
+            $docParser   = new DocumentParserService();
+            $parseResult = $docParser->parseFile($savedFilePath, $ext);
+            $content     = $parseResult['text'] ?? '';
+
+            $attrs = is_string($doc['attributes'])
+                ? (json_decode($doc['attributes'], true) ?? [])
+                : ($doc['attributes'] ?? []);
+
+            $attrs['caminho_arquivo'] = $savedFilePath;
+            $attrs['formato']         = strtoupper($ext);
+            $attrs['descricao']       = mb_substr($content, 0, 4000);
+
+            $this->entityModel->update($documentId, [
+                'attributes' => json_encode($attrs, JSON_UNESCAPED_UNICODE)
+            ]);
+
+            // 2. Acionar extração automática via IA DeepSeek
+            return $this->extract($documentId);
+
+        } catch (\Exception $e) {
+            session()->setFlashdata('error', 'Erro ao vincular arquivo: ' . $e->getMessage());
+            return redirect()->to('documentos/' . $documentId . '/revisar');
+        }
+    }
+
+    /**
      * POST /documentos/(:num)/extrair
      * Chama OCR (se imagem/PDF) e a IA para reler o documento e persistir hipóteses de entidades e relações.
      */

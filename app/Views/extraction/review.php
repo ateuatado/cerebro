@@ -103,15 +103,23 @@ ob_start();
                             </div>
                         <?php endif; ?>
                     <?php else: ?>
-                        <div class="py-4 text-center">
-                            <i class="bi bi-exclamation-triangle" style="font-size:2.5rem;color:var(--cbr-hypothesis)"></i>
-                            <p class="mt-2" style="font-size:.875rem;color:var(--cbr-text);margin:0">
-                                O arquivo físico desta imagem não foi encontrado no servidor neste caminho:
+                        <div class="py-3 px-2 text-center">
+                            <i class="bi bi-cloud-arrow-up" style="font-size:2.5rem;color:var(--cbr-primary)"></i>
+                            <h4 style="font-size:.9375rem;font-weight:700;color:var(--cbr-text);margin-top:.5rem">
+                                Anexar Foto Original do Documento
+                            </h4>
+                            <p style="font-size:.8125rem;color:var(--cbr-text-muted);margin-bottom:1rem">
+                                Envie a foto de <code><?= esc($doc['name']) ?></code> para executar o OCR e a extração por IA:
                             </p>
-                            <code style="font-size:.75rem;color:var(--cbr-primary);word-break:break-all" class="d-block my-2"><?= esc($filePath ?: 'Nenhum caminho registrado') ?></code>
-                            <p class="text-subtle" style="font-size:.75rem;margin:0">
-                                Execute o comando <code>php spark ingest:folder "C:\sua\pasta"</code> para vincular o arquivo original.
-                            </p>
+                            <form action="<?= base_url('documentos/' . $doc['id'] . '/vincular-arquivo') ?>" method="post" enctype="multipart/form-data" class="d-inline-block text-start w-100" style="max-width:380px">
+                                <?= csrf_field() ?>
+                                <div class="mb-2">
+                                    <input type="file" name="file" accept=".jpg,.jpeg,.png,.webp,.pdf" class="form-control form-control-sm" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-sm w-100 d-flex align-items-center justify-content-center gap-2">
+                                    <i class="bi bi-magic"></i> Enviar Imagem e Processar com OCR + IA
+                                </button>
+                            </form>
                         </div>
                     <?php endif; ?>
                 </div>
