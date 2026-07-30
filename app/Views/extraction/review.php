@@ -1,7 +1,7 @@
 <?php
 /**
  * Cerebro — Views/extraction/review.php
- * Interface de revisão Human-in-the-Loop (Documento vs Hipóteses da IA)
+ * Interface de revisão Human-in-the-Loop (Documento Original vs Hipóteses da IA)
  */
 $auth = new \App\Services\AuthService();
 $role = $auth->currentUser()['role'] ?? 'colaborador';
@@ -13,6 +13,10 @@ $relatedEntities = $relatedEntities ?? [];
 $attrs = is_string($doc['attributes'])
     ? (json_decode($doc['attributes'], true) ?? [])
     : ($doc['attributes'] ?? []);
+
+$filePath = $attrs['caminho_arquivo'] ?? '';
+$format   = strtolower($attrs['formato'] ?? pathinfo($doc['name'], PATHINFO_EXTENSION));
+$hasFile  = !empty($filePath) && file_exists($filePath);
 
 $typeConfig = [
     'person'   => ['icon'=>'bi-person-fill',      'css'=>'person',   'color'=>'var(--cbr-person)'],
@@ -33,11 +37,11 @@ ob_start();
         <div>
             <h1 class="cbr-page-title">
                 <i class="bi bi-robot" style="color:var(--cbr-primary)"></i>
-                Revisão de extração por IA
+                Curadoria & Revisão de Fonte Primária
             </h1>
             <p class="cbr-page-subtitle">
                 Documento: <strong><?= esc($doc['name']) ?></strong> —
-                <?= count($pendingHypotheses) ?> hipótese(s) aguardando confirmação
+                <?= count($pendingHypotheses) ?> hipótese(s) aguardando validação do pesquisador
             </p>
         </div>
         <div class="d-flex gap-2 align-items-center">
@@ -51,7 +55,7 @@ ob_start();
             <?php endif; ?>
 
             <a href="<?= base_url('entidades/' . $doc['id']) ?>" class="btn btn-outline-secondary d-flex align-items-center gap-1">
-                <i class="bi bi-arrow-left"></i> Voltar ao documento
+                <i class="bi bi-arrow-left"></i> Voltar à entidade
             </a>
         </div>
     </div>
@@ -59,35 +63,74 @@ ob_start();
     <!-- Layout Dividido (Split-View) -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem" class="cbr-split-layout">
 
-        <!-- LADO ESQUERDO: Texto e Metadados do Documento -->
+        <!-- LADO ESQUERDO: Imagem Original do Documento + Texto OCR -->
         <div>
+            <!-- Card de Visualização do Arquivo Original -->
+            <div class="cbr-card mb-3 p-0 overflow-hidden" style="border: 1px solid var(--cbr-primary-dim)">
+                <div style="padding:.75rem 1rem;background:var(--cbr-surface-2);border-bottom:1px solid var(--cbr-border);display:flex;align-items:center;justify-content:space-between">
+                    <h2 style="font-size:.9375rem;font-weight:700;color:var(--cbr-text);margin:0;display:flex;align-items:center;gap:.5rem">
+                        <i class="bi bi-file-earmark-image" style="color:var(--cbr-primary)"></i>
+                        Arquivo Original (Fonte Primária)
+                    </h2>
+                    <?php if ($hasFile): ?>
+                    <a href="<?= base_url('documentos/' . $doc['id'] . '/arquivo') ?>" target="_blank" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-box-arrow-up-right me-1"></i> Abrir em Tela Cheia
+                    </a>
+                    <?php endif; ?>
+                </div>
+
+                <div style="background:#0f172a;text-align:center;padding:1rem;max-height:500px;overflow:auto">
+                    <?php if ($hasFile): ?>
+                        <?php if (in_array($format, ['jpg', 'jpeg', 'png', 'webp', 'bmp'])): ?>
+                            <img src="<?= base_url('documentos/' . $doc['id'] . '/arquivo') ?>"
+                                 alt="<?= esc($doc['name']) ?>"
+                                 class="img-fluid rounded border shadow-sm"
+                                 style="max-height:460px;object-fit:contain;cursor:zoom-in"
+                                 title="Clique para abrir imagem em tamanho real"
+                                 onclick="window.open(this.src, '_blank')">
+                        <?php elseif ($format === 'pdf'): ?>
+                            <iframe src="<?= base_url('documentos/' . $doc['id'] . '/arquivo') ?>"
+                                    style="width:100%;height:460px;border:none"></iframe>
+                        <?php else: ?>
+                            <div class="py-4 text-center">
+                                <i class="bi bi-file-earmark-text" style="font-size:3rem;color:var(--cbr-primary)"></i>
+                                <p class="mt-2" style="font-size:.875rem;color:var(--cbr-text)">
+                                    Documento de texto original disponível.
+                                </p>
+                                <a href="<?= base_url('documentos/' . $doc['id'] . '/arquivo') ?>" target="_blank" class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-download me-1"></i> Baixar Arquivo Original
+                                </a>
+                            </div>
+                        <?php endif; ?>
+                    <?php else: ?>
+                        <div class="py-4 text-center">
+                            <i class="bi bi-exclamation-triangle" style="font-size:2.5rem;color:var(--cbr-hypothesis)"></i>
+                            <p class="mt-2" style="font-size:.875rem;color:var(--cbr-text);margin:0">
+                                O arquivo físico desta imagem não foi encontrado no servidor neste caminho:
+                            </p>
+                            <code style="font-size:.75rem;color:var(--cbr-primary);word-break:break-all" class="d-block my-2"><?= esc($filePath ?: 'Nenhum caminho registrado') ?></code>
+                            <p class="text-subtle" style="font-size:.75rem;margin:0">
+                                Execute o comando <code>php spark ingest:folder "C:\sua\pasta"</code> para vincular o arquivo original.
+                            </p>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <!-- Texto / Transcrição Analisada -->
             <div class="cbr-card mb-3">
-                <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;padding-bottom:.75rem;border-bottom:1px solid var(--cbr-border)">
-                    <div style="width:40px;height:40px;border-radius:.5rem;background:var(--cbr-document-bg);color:var(--cbr-document);display:flex;align-items:center;justify-content:center;font-size:1.25rem">
-                        <i class="bi bi-file-earmark-text"></i>
-                    </div>
-                    <div>
-                        <h2 style="font-size:1.125rem;font-weight:700;color:var(--cbr-text);margin:0"><?= esc($doc['name']) ?></h2>
-                        <span class="badge-type badge-document">Fonte Primária</span>
-                    </div>
-                </div>
-
-                <!-- Atributos do Documento -->
-                <div class="cbr-attr-table mb-3">
-                    <?php foreach ($attrs as $k => $v): if ($k === 'descricao' || $k === 'notas' || is_array($v)) continue; ?>
-                    <div class="cbr-attr-row">
-                        <div class="cbr-attr-key"><?= esc(ucwords(str_replace('_',' ',$k))) ?></div>
-                        <div class="cbr-attr-val"><?= esc($v) ?></div>
-                    </div>
-                    <?php endforeach; ?>
-                </div>
-
-                <!-- Conteúdo/Transcrição -->
                 <h3 style="font-size:.875rem;font-weight:700;color:var(--cbr-text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem">
-                    Texto / Transcrição Analisada
+                    <i class="bi bi-body-text me-1"></i> Texto / Transcrição OCR Analisada
                 </h3>
-                <div style="padding:1rem;background:var(--cbr-surface-2);border:1px solid var(--cbr-border);border-radius:var(--cbr-radius-sm);font-size:.875rem;color:var(--cbr-text);max-height:400px;overflow-y:auto;white-space:pre-line;line-height:1.6">
-                    <?= esc($attrs['descricao'] ?? $attrs['notas'] ?? $attrs['titulo'] ?? $doc['name']) ?>
+                <div style="padding:1rem;background:var(--cbr-surface-2);border:1px solid var(--cbr-border);border-radius:var(--cbr-radius-sm);font-size:.875rem;color:var(--cbr-text);max-height:350px;overflow-y:auto;white-space:pre-line;line-height:1.6">
+                    <?php
+                    $desc = $attrs['descricao'] ?? $attrs['notas'] ?? $attrs['titulo'] ?? $doc['name'];
+                    if (strpos($desc, 'Metadados EXIF:') !== false) {
+                        $parts = explode('Metadados EXIF:', $desc);
+                        $desc = trim($parts[0]);
+                    }
+                    echo esc($desc);
+                    ?>
                 </div>
             </div>
         </div>
@@ -113,7 +156,7 @@ ob_start();
                         <form action="<?= base_url('documentos/' . $doc['id'] . '/extrair') ?>" method="post">
                             <?= csrf_field() ?>
                             <button type="submit" class="btn btn-primary btn-sm d-inline-flex align-items-center gap-2">
-                                <i class="bi bi-play-fill"></i> Executar Extração com DeepSeek
+                                <i class="bi bi-play-fill"></i> Executar Extração por IA (OCR + DeepSeek)
                             </button>
                         </form>
                     </div>
@@ -182,7 +225,6 @@ ob_start();
                         </div>
                         <?php endforeach; ?>
                     </div>
-
                     <?php endif; ?>
                 </div>
             </div>
@@ -192,31 +234,40 @@ ob_start();
 
 </div>
 
-<style>
-@media (max-width: 991.98px) {
-    .cbr-split-layout { grid-template-columns: 1fr !important; }
-}
-</style>
-
 <script>
-// Confirmar relação via AJAX / Form POST
-document.querySelectorAll('[data-confirm-rel]').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-        var url = this.dataset.confirmUrl;
-        if (!url) return;
-        if (!confirm('Confirmar esta relação como fato documentado?')) return;
-        var form = document.createElement('form');
-        form.method = 'POST'; form.action = url;
-        var csrf = document.querySelector('meta[name="csrf-token"]');
-        if (csrf) {
-            var h = document.createElement('input');
-            h.type = 'hidden';
-            h.name = csrf.dataset.name || 'csrf_token';
-            h.value = csrf.content;
-            form.appendChild(h);
-        }
-        document.body.appendChild(form);
-        form.submit();
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('[data-confirm-rel]').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const url = this.dataset.confirmUrl;
+            this.disabled = true;
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: '<?= csrf_token() ?>=<?= csrf_hash() ?>'
+                });
+                const data = await res.json();
+                if (data.success) {
+                    const card = this.closest('.cbr-card');
+                    card.style.borderColor = 'var(--cbr-confirmed)';
+                    const badge = card.querySelector('.badge-hypothesis');
+                    if (badge) {
+                        badge.className = 'badge-confirmed';
+                        badge.textContent = '✅ Fato Confirmado';
+                    }
+                    this.remove();
+                } else {
+                    alert(data.error || 'Erro ao confirmar');
+                    this.disabled = false;
+                }
+            } catch (e) {
+                alert('Erro de conexão');
+                this.disabled = false;
+            }
+        });
     });
 });
 </script>
@@ -224,15 +275,6 @@ document.querySelectorAll('[data-confirm-rel]').forEach(function(btn) {
 <?php
 $content = ob_get_clean();
 echo view('layout/base', [
-    'title'      => 'Revisão IA — ' . esc($doc['name']),
-    'breadcrumbs'=> [
-        ['label'=>'Dashboard', 'url'=>base_url('/')],
-        ['label'=>'Entidades', 'url'=>base_url('entidades')],
-        ['label'=>esc($doc['name']), 'url'=>base_url('entidades/' . $doc['id'])],
-        ['label'=>'Revisão IA', 'url'=>''],
-    ],
-    'content'    => $content,
-    'pageCss'    => ['entities.css'],
-    'pageJs'     => [],
+    'content'   => $content,
+    'pageTitle' => 'Revisão: ' . esc($doc['name']),
 ]);
-?>
