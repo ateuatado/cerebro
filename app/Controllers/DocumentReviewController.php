@@ -45,6 +45,29 @@ class DocumentReviewController extends BaseController
         return '';
     }
 
+    private function getTargetPageImage(int $id, int $page, string $filePath): ?string
+    {
+        $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+
+        if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'bmp'])) {
+            return file_exists($filePath) ? $filePath : null;
+        }
+
+        $cacheDir = str_replace('\\', '/', WRITEPATH . 'uploads/page_cache_' . $id);
+        $this->parserService->renderPdfPagesToCache($filePath, $cacheDir);
+
+        $targetImg = $cacheDir . '/page_' . $page . '.jpg';
+        if (!file_exists($targetImg)) {
+            $pages = glob($cacheDir . '/page_*.jpg');
+            if (!empty($pages)) {
+                sort($pages, SORT_NATURAL);
+                $targetImg = $pages[$page - 1] ?? ($pages[0] ?? null);
+            }
+        }
+
+        return ($targetImg && file_exists($targetImg)) ? $targetImg : null;
+    }
+
     /**
      * Tela principal do workspace de transcrição e revisão (/documentos/{id}/revisar)
      */
@@ -96,33 +119,13 @@ class DocumentReviewController extends BaseController
             return $this->response->setStatusCode(404)->setBody('Arquivo não encontrado no servidor.');
         }
 
-        $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        $targetImg = $this->getTargetPageImage($id, $page, $filePath);
 
-        if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'bmp'])) {
-            $mime = match ($ext) {
-                'jpg', 'jpeg' => 'image/jpeg',
-                'png'         => 'image/png',
-                'webp'        => 'image/webp',
-                default       => 'image/jpeg',
-            };
-            return $this->response->setHeader('Content-Type', $mime)->setBody(file_get_contents($filePath));
-        }
-
-        $cacheDir  = str_replace('\\', '/', WRITEPATH . 'uploads/page_cache_' . $id);
-        $this->parserService->renderPdfPagesToCache($filePath, $cacheDir);
-
-        $pageFile = $cacheDir . '/page_' . $page . '.jpg';
-        if (!file_exists($pageFile)) {
-            $pages = glob($cacheDir . '/page_*.jpg');
-            sort($pages, SORT_NATURAL);
-            $pageFile = $pages[0] ?? null;
-        }
-
-        if ($pageFile && file_exists($pageFile)) {
+        if ($targetImg && file_exists($targetImg)) {
             return $this->response
                 ->setHeader('Content-Type', 'image/jpeg')
                 ->setHeader('Cache-Control', 'no-cache, must-revalidate')
-                ->setBody(file_get_contents($pageFile));
+                ->setBody(file_get_contents($targetImg));
         }
 
         return $this->response->setStatusCode(404)->setBody('Página não encontrada.');
@@ -142,15 +145,7 @@ class DocumentReviewController extends BaseController
 
         $attributes = is_string($doc['attributes']) ? json_decode($doc['attributes'], true) : ($doc['attributes'] ?? []);
         $filePath   = $this->getAbsoluteFilePath($attributes);
-        $ext        = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
-
-        $targetImg = null;
-        if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'bmp'])) {
-            $targetImg = $filePath;
-        } else {
-            $cacheDir  = str_replace('\\', '/', WRITEPATH . 'uploads/page_cache_' . $id);
-            $targetImg = $cacheDir . '/page_' . $page . '.jpg';
-        }
+        $targetImg  = $this->getTargetPageImage($id, $page, $filePath);
 
         if (!$targetImg || !file_exists($targetImg)) {
             return $this->response->setJSON(['success' => false, 'error' => 'Imagem da página não encontrada para rotação.']);
@@ -165,9 +160,9 @@ class DocumentReviewController extends BaseController
         $newOcrText = $this->parserService->performOcr($targetImg, 'jpg');
 
         return $this->response->setJSON([
-            'success' => true,
-            'message' => "Página {$page} rotacionada {$degrees}° com sucesso!",
-            'ocrText' => $newOcrText,
+            'success'   => true,
+            'message'   => "Página {$page} rotacionada {$degrees}° com sucesso!",
+            'ocrText'   => $newOcrText,
             'timestamp' => time(),
         ]);
     }
@@ -191,15 +186,7 @@ class DocumentReviewController extends BaseController
 
         $attributes = is_string($doc['attributes']) ? json_decode($doc['attributes'], true) : ($doc['attributes'] ?? []);
         $filePath   = $this->getAbsoluteFilePath($attributes);
-        $ext        = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
-
-        $targetImg = null;
-        if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'bmp'])) {
-            $targetImg = $filePath;
-        } else {
-            $cacheDir  = str_replace('\\', '/', WRITEPATH . 'uploads/page_cache_' . $id);
-            $targetImg = $cacheDir . '/page_' . $page . '.jpg';
-        }
+        $targetImg  = $this->getTargetPageImage($id, $page, $filePath);
 
         if (!$targetImg || !file_exists($targetImg)) {
             return $this->response->setJSON(['success' => false, 'error' => 'Imagem da página não encontrada para recorte.']);
@@ -242,18 +229,10 @@ class DocumentReviewController extends BaseController
 
         $attributes = is_string($doc['attributes']) ? json_decode($doc['attributes'], true) : ($doc['attributes'] ?? []);
         $filePath   = $this->getAbsoluteFilePath($attributes);
-        $ext        = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
-
-        $targetImg = null;
-        if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'bmp'])) {
-            $targetImg = $filePath;
-        } else {
-            $cacheDir  = str_replace('\\', '/', WRITEPATH . 'uploads/page_cache_' . $id);
-            $targetImg = $cacheDir . '/page_' . $page . '.jpg';
-        }
+        $targetImg  = $this->getTargetPageImage($id, $page, $filePath);
 
         if (!$targetImg || !file_exists($targetImg)) {
-            return $this->response->setJSON(['success' => false, 'error' => 'Imagem da página não encontrada.']);
+            return $this->response->setJSON(['success' => false, 'error' => 'Imagem da página não encontrada para extração.']);
         }
 
         $cropFile = $this->parserService->cropImageRegion($targetImg, $x, $y, $w, $h, $canvasW, $canvasH);

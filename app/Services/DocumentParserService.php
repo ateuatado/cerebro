@@ -195,35 +195,30 @@ PYTHON;
             return null;
         }
 
-        // Se dimensões do canvas forem passadas, calcular escala proporcional
         $info = @getimagesize($imgPath);
         if (!$info) return null;
 
-        $origW = $info[0];
-        $origH = $info[1];
+        $origW = (int) $info[0];
+        $origH = (int) $info[1];
 
-        $scaleX = ($canvasW > 0) ? ($origW / $canvasW) : 1;
-        $scaleY = ($canvasH > 0) ? ($origH / $canvasH) : 1;
+        $scaleX = ($canvasW > 0) ? ($origW / (float)$canvasW) : 1.0;
+        $scaleY = ($canvasH > 0) ? ($origH / (float)$canvasH) : 1.0;
 
         $realX = (int) round($x * $scaleX);
         $realY = (int) round($y * $scaleY);
         $realW = (int) round($w * $scaleX);
         $realH = (int) round($h * $scaleY);
 
-        // Limitar dentro das bordas da imagem original
-        $realX = max(0, min($realX, $origW - 1));
-        $realY = max(0, min($realY, $origH - 1));
-        $realW = min($realW, $origW - $realX);
-        $realH = min($realH, $origH - $realY);
+        // Garantir limites perfeitamente dentro da imagem
+        $realX = max(0, min($realX, $origW - 10));
+        $realY = max(0, min($realY, $origH - 10));
+        $realW = max(10, min($realW, $origW - $realX));
+        $realH = max(10, min($realH, $origH - $realY));
 
-        if ($realW <= 5 || $realH <= 5) {
-            return null;
-        }
-
-        // 1. Recorte via Python PIL
         $cropFile = WRITEPATH . 'uploads/crop_' . uniqid() . '.jpg';
         $cropFile = str_replace('\\', '/', $cropFile);
 
+        // 1. Recorte via Python PIL (Infalível e de alta qualidade)
         $pyCode = <<<PYTHON
 import os
 from PIL import Image
@@ -231,9 +226,11 @@ try:
     src_p = "{$imgPath}"
     dst_p = "{$cropFile}"
     img = Image.open(src_p)
-    # PIL crop: (left, upper, right, lower)
-    box = ({$realX}, {$realY}, {$realX} + {$realW}, {$realY} + {$realH})
-    cropped = img.crop(box)
+    left = {$realX}
+    upper = {$realY}
+    right = {$realX} + {$realW}
+    lower = {$realY} + {$realH}
+    cropped = img.crop((left, upper, right, lower))
     cropped.save(dst_p, quality=95)
     print("SUCCESS")
 except Exception as e:
