@@ -228,6 +228,7 @@ class ExtractionController extends BaseController
             'event'    => new EventModel(),
         ];
         $userId = $this->auth->currentUser()['user_id'] ?? 1;
+        session_write_close(); // Libera o lock da sessão PHP para requisições paralelas (ex: /grafo)
 
         foreach ($documents as $doc) {
             $attrs = is_string($doc['attributes'])

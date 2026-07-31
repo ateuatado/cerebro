@@ -124,6 +124,7 @@ class PendingExtractionController extends BaseController
 
         try {
             $userId = $this->auth->currentUser()['user_id'] ?? 1;
+            session_write_close(); // Libera o lock da sessão PHP para permitir navegação paralela (ex: /grafo)
             $res    = $this->extractionService->extractFromDocument($docId, $userId);
 
             return $this->response->setJSON([
@@ -150,6 +151,9 @@ class PendingExtractionController extends BaseController
             return $this->response->setStatusCode(400)->setJSON(['error' => 'Requisição inválida']);
         }
 
+        $userId = $this->auth->currentUser()['user_id'] ?? 1;
+        session_write_close(); // Libera o lock da sessão PHP durante o processamento em lote
+
         $db = \Config\Database::connect();
         $docs = $db->table('entities')
             ->where('type', 'document')
@@ -157,7 +161,6 @@ class PendingExtractionController extends BaseController
             ->get()
             ->getResultArray();
 
-        $userId = $this->auth->currentUser()['user_id'] ?? 1;
         $totalProcessed = 0;
         $totalEntities  = 0;
         $totalRels      = 0;

@@ -78,6 +78,7 @@ class BatchIngestController extends BaseController
             }
 
             $userId   = $this->auth->currentUser()['user_id'] ?? 1;
+            session_write_close(); // Libera o lock da sessão para permitir navegação paralela (ex: /grafo)
             $docModel = new DocumentModel();
 
             // Salvar no repositório de texto bruto do PostgreSQL

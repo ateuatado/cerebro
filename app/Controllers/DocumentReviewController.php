@@ -224,6 +224,8 @@ class DocumentReviewController extends BaseController
                 return $this->response->setJSON(['success' => false, 'error' => 'Nenhum recorte de imagem recebido.']);
             }
 
+            session_write_close(); // Libera o lock da sessão para permitir requisições paralelas (ex: /grafo)
+
             // Nível 1: Gemini Vision (leitura superior de manuscritos)
             if ($this->geminiService->isAvailable()) {
                 try {
@@ -305,6 +307,8 @@ class DocumentReviewController extends BaseController
             if (empty($base64Crop)) {
                 return $this->response->setJSON(['success' => false, 'error' => 'Nenhum recorte de imagem recebido.']);
             }
+
+            session_write_close(); // Libera o lock da sessão para permitir navegação paralela (ex: /grafo)
 
             // Tenta usar Gemini Vision para leitura + DeepSeek para entidades
             if ($this->geminiService->isAvailable()) {
