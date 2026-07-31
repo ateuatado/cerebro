@@ -123,6 +123,8 @@ class PendingExtractionController extends BaseController
         }
 
         try {
+            @set_time_limit(600);
+            @ini_set('max_execution_time', '600');
             $userId = $this->auth->currentUser()['user_id'] ?? 1;
             session_write_close(); // Libera o lock da sessão PHP para permitir navegação paralela (ex: /grafo)
             $res    = $this->extractionService->extractFromDocument($docId, $userId);
@@ -150,6 +152,9 @@ class PendingExtractionController extends BaseController
         if (!$this->request->isAJAX()) {
             return $this->response->setStatusCode(400)->setJSON(['error' => 'Requisição inválida']);
         }
+
+        @set_time_limit(1800);
+        @ini_set('max_execution_time', '1800');
 
         $userId = $this->auth->currentUser()['user_id'] ?? 1;
         session_write_close(); // Libera o lock da sessão PHP durante o processamento em lote

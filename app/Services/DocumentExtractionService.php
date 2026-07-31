@@ -74,6 +74,9 @@ class DocumentExtractionService
      */
     public function extractFromDocument(int $documentId, ?int $userId = null): array
     {
+        @set_time_limit(600);
+        @ini_set('max_execution_time', '600');
+
         $db = \Config\Database::connect();
         $doc = $this->entityModel->find($documentId);
 

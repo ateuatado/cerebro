@@ -170,7 +170,17 @@ document.addEventListener('DOMContentLoaded', function () {
                     body: formData
                 });
 
-                const data = await response.json();
+                const responseText = await response.text();
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                } catch (e) {
+                    const cleanText = responseText.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
+                    data = {
+                        success: false,
+                        error: 'O servidor retornou uma resposta inválida ou erro PHP: ' + (cleanText.substring(0, 150) || 'Erro desconhecido')
+                    };
+                }
 
                 if (response.ok && data.success) {
                     item.status = 'done';

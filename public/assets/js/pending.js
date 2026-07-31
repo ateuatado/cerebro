@@ -264,7 +264,15 @@ document.addEventListener('DOMContentLoaded', function () {
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             })
-            .then(response => response.json())
+            .then(async response => {
+                const text = await response.text();
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    const cleanText = text.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
+                    return { success: false, error: cleanText.substring(0, 200) || 'Resposta inválida do servidor' };
+                }
+            })
             .then(data => {
                 if (data.success) {
                     if (progressBar) progressBar.style.width = '100%';

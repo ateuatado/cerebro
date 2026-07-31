@@ -43,6 +43,9 @@ class BatchIngestController extends BaseController
             return $this->response->setStatusCode(400)->setJSON(['error' => 'Requisição inválida']);
         }
 
+        @set_time_limit(600);
+        @ini_set('max_execution_time', '600');
+
         $file = $this->request->getFile('file');
         if (!$file || !$file->isValid()) {
             return $this->response->setStatusCode(422)->setJSON([
