@@ -16,12 +16,14 @@ class DocumentExtractionService
     private EntityModel       $entityModel;
     private RelationshipModel $relationshipModel;
     private DeepSeekService   $deepSeekService;
+    private GeminiVisionService $geminiService;
 
     public function __construct()
     {
         $this->entityModel       = new EntityModel();
         $this->relationshipModel = new RelationshipModel();
         $this->deepSeekService   = new DeepSeekService();
+        $this->geminiService     = new GeminiVisionService();
     }
 
     /**
@@ -43,7 +45,7 @@ class DocumentExtractionService
     /**
      * Divide o texto em blocos sequenciais por parágrafos com sobreposição.
      */
-    public function chunkText(string $text, int $chunkSize = 2800): array
+    public function chunkText(string $text, int $chunkSize = 10000): array
     {
         $sanitized = $this->sanitizeTextForJson($text);
         if (strlen($sanitized) <= $chunkSize) {
@@ -115,9 +117,22 @@ class DocumentExtractionService
         ]);
 
         try {
-            // Executar extração dividida em blocos
             $docTitle   = $doc['name'] ?? 'Documento #' . $documentId;
-            $extraction = $this->deepSeekService->extractKnowledgeChunked($docTitle, $fullText, $attributes, 2800);
+            $extraction = [];
+
+            // 1. Tentar Gemini 2.0 Flash primeiro (1 chamada ultra-rápida de ~8s para até 50.000 caracteres)
+            if ($this->geminiService->isAvailable()) {
+                try {
+                    $extraction = $this->geminiService->extractKnowledgeFromText($docTitle, $fullText);
+                } catch (\Throwable $geminiErr) {
+                    log_message('warning', 'Gemini extraction error, falling back to DeepSeek: ' . $geminiErr->getMessage());
+                }
+            }
+
+            // 2. Fallback: DeepSeek chunked em blocos grandes de 10.000 caracteres (máx 4-5 chamadas)
+            if (empty($extraction['entities'])) {
+                $extraction = $this->deepSeekService->extractKnowledgeChunked($docTitle, $fullText, $attributes, 10000);
+            }
 
             $extractedEntities = $extraction['entities'] ?? [];
             $extractedRels     = $extraction['relationships'] ?? [];

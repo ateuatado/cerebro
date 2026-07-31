@@ -211,7 +211,7 @@ PROMPT;
      * Extração de alta densidade em documentos longos (ex: jornais, processos extensos),
      * dividindo o texto em blocos sequenciais para extrair dezenas/centenas de relações sem truncamento da IA.
      */
-    public function extractKnowledgeChunked(string $docTitle, string $docText, array $extraAttributes = [], int $chunkSize = 3000): array
+    public function extractKnowledgeChunked(string $docTitle, string $docText, array $extraAttributes = [], int $chunkSize = 10000): array
     {
         if (\strlen($docText) <= $chunkSize) {
             return $this->extractKnowledge($docTitle, $docText, $extraAttributes);
