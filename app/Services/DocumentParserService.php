@@ -183,8 +183,11 @@ class DocumentParserService
             return '';
         }
 
+        $tessdataDir = str_replace('\\', '/', WRITEPATH . 'tessdata');
+        $tessDataOpt = file_exists($tessdataDir . '/por.traineddata') ? ' --tessdata-dir ' . escapeshellarg($tessdataDir) : '';
+
         // Executar Tesseract OCR se disponível no sistema
-        $tesseractCmd = "tesseract " . escapeshellarg($filePath) . " stdout -l por 2>&1";
+        $tesseractCmd = "tesseract " . escapeshellarg($filePath) . " stdout -l por" . $tessDataOpt . " 2>&1";
         exec($tesseractCmd, $outputLines, $returnVar);
 
         if ($returnVar === 0 && !empty($outputLines)) {
@@ -203,7 +206,7 @@ class DocumentParserService
 
         foreach ($tesseractPaths as $tesseractExe) {
             if (file_exists($tesseractExe)) {
-                $cmd = escapeshellarg($tesseractExe) . ' ' . escapeshellarg($filePath) . ' stdout -l por 2>&1';
+                $cmd = escapeshellarg($tesseractExe) . ' ' . escapeshellarg($filePath) . ' stdout -l por' . $tessDataOpt . ' 2>&1';
                 exec($cmd, $outputLines2, $returnVar2);
                 if ($returnVar2 === 0 && !empty($outputLines2)) {
                     $extractedText = trim(implode("\n", $outputLines2));
