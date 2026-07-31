@@ -253,13 +253,33 @@ class DocumentParserService
             return ['totalPages' => 0, 'pages' => []];
         }
 
-        // Obter número de páginas (Ghostscript 10+ requer -dNOSAFER para acesso a arquivos via PostScript)
-        $pagesCmd = escapeshellarg($gsBin)
-            . ' -dNOPAUSE -dBATCH -dNODISPLAY -dNOSAFER'
-            . ' -c "(' . escapeshellarg($pdfPath) . ') (r) file runpdfbegin pdfpagecount = quit" 2>&1';
-        exec($pagesCmd, $pagesOutput, $pagesReturn);
-        $totalPages = intval(implode('', $pagesOutput) ?: 1);
-        if ($totalPages < 1) $totalPages = 1;
+        // Obter número de páginas (priorizando Smalot\PdfParser e fallback seguro para Ghostscript)
+        $totalPages = 1;
+        if (class_exists(\Smalot\PdfParser\Parser::class)) {
+            try {
+                $parser = new \Smalot\PdfParser\Parser();
+                $pdf = $parser->parseFile($pdfPath);
+                $pagesCount = count($pdf->getPages());
+                if ($pagesCount > 0) {
+                    $totalPages = $pagesCount;
+                }
+            } catch (\Throwable $e) {
+                log_message('warning', 'Smalot page count failed: ' . $e->getMessage());
+            }
+        }
+
+        if ($totalPages <= 1) {
+            $pagesCmd = escapeshellarg($gsBin)
+                . ' -dNOPAUSE -dBATCH -dNODISPLAY -dNOSAFER'
+                . ' -c "(' . escapeshellarg($pdfPath) . ') (r) file runpdfbegin pdfpagecount = quit" 2>&1';
+            exec($pagesCmd, $pagesOutput, $pagesReturn);
+            foreach ($pagesOutput as $line) {
+                $trimmed = trim($line);
+                if (is_numeric($trimmed) && intval($trimmed) > 0) {
+                    $totalPages = intval($trimmed);
+                }
+            }
+        }
 
         // Renderizar cada página como JPEG
         $pages = [];
