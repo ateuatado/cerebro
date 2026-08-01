@@ -38,6 +38,18 @@ $routes->group('relacoes', ['filter' => 'auth'], function ($routes) {
 // ─── Grafo dedicado ───────────────────────────────────────────────────
 $routes->get('grafo', 'GraphController::index', ['filter' => 'auth']);
 
+// ─── Pesquisas / Assuntos — Spec 9 ─────────────────────────────────────
+$routes->group('pesquisas', ['filter' => 'auth'], function ($routes) {
+    $routes->get('/',                     'ResearchProjectController::index');
+    $routes->get('nova',                  'ResearchProjectController::create');
+    $routes->post('nova',                 'ResearchProjectController::store');
+    $routes->get('(:num)/editar',         'ResearchProjectController::edit/$1');
+    $routes->post('(:num)/editar',        'ResearchProjectController::update/$1');
+    $routes->post('(:num)/deletar',       'ResearchProjectController::delete/$1');
+    $routes->get('(:num)/documentos',     'ResearchProjectController::manageDocuments/$1');
+    $routes->post('(:num)/documentos',    'ResearchProjectController::saveDocuments/$1');
+});
+
 // ─── Documentos & Upload em Lote ──────────────────────────────────────
 $routes->get('documentos',      'EntityController::documents', ['filter' => 'auth']);
 $routes->get('documentos/lote', 'BatchIngestController::index', ['filter' => 'auth']);
