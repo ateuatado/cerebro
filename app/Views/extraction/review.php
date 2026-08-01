@@ -81,7 +81,7 @@ ob_start();
 
                 <div style="background:#0f172a;text-align:center;padding:1rem;max-height:500px;overflow:auto">
                     <?php if ($hasFile): ?>
-                        <?php if (in_array($format, ['jpg', 'jpeg', 'png', 'webp', 'bmp'])): ?>
+                        <?php if (in_array($format, ['jpg', 'jpeg', 'jfif', 'png', 'webp', 'bmp'])): ?>
                             <img src="<?= base_url('documentos/' . $doc['id'] . '/arquivo') ?>"
                                  alt="<?= esc($doc['name']) ?>"
                                  class="img-fluid rounded border shadow-sm"
@@ -114,7 +114,7 @@ ob_start();
                             <form action="<?= base_url('documentos/' . $doc['id'] . '/vincular-arquivo') ?>" method="post" enctype="multipart/form-data" class="d-inline-block text-start w-100" style="max-width:380px">
                                 <?= csrf_field() ?>
                                 <div class="mb-2">
-                                    <input type="file" name="file" accept=".jpg,.jpeg,.png,.webp,.pdf" class="form-control form-control-sm" required>
+                                    <input type="file" name="file" accept=".jpg,.jpeg,.jfif,.png,.webp,.pdf" class="form-control form-control-sm" required>
                                 </div>
                                 <button type="submit" class="btn btn-primary btn-sm w-100 d-flex align-items-center justify-content-center gap-2">
                                     <i class="bi bi-magic"></i> Enviar Imagem e Processar com OCR + IA
