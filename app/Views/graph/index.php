@@ -15,7 +15,7 @@ ob_start();
 
 <div class="fade-in-up">
 
-    <div class="cbr-page-header">
+    <div class="cbr-page-header flex-wrap gap-3">
         <div>
             <h1 class="cbr-page-title">Visualização do grafo</h1>
             <p class="cbr-page-subtitle">
@@ -23,12 +23,28 @@ ob_start();
                 <?= $relCount ?> relação<?= $relCount !== 1 ? 'ões' : '' ?>
             </p>
         </div>
-        <a href="<?= base_url('entidades/nova') ?>"
-           class="btn btn-primary d-flex align-items-center gap-2"
-           id="graph-new-entity">
-            <i class="bi bi-plus-lg" aria-hidden="true"></i>
-            <span class="d-none d-sm-inline">Nova entidade</span>
-        </a>
+
+        <div class="d-flex align-items-center gap-3">
+            <!-- Seletor de Pesquisa / Assunto — Spec 9 -->
+            <form method="GET" action="<?= base_url('grafo') ?>" class="d-flex align-items-center gap-2">
+                <label for="research_id" class="text-subtle small d-none d-md-inline">Pesquisa:</label>
+                <select name="research_id" id="research_id" class="form-select form-select-sm bg-dark text-white border-secondary" style="min-width: 200px;" onchange="this.form.submit()">
+                    <option value="0">🌐 Grafo Global (Todas)</option>
+                    <?php foreach ($researches as $res): ?>
+                        <option value="<?= $res['id'] ?>" <?= $currentResearchId == $res['id'] ? 'selected' : '' ?>>
+                            📁 <?= esc($res['title']) ?> (<?= $res['document_count'] ?> docs)
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </form>
+
+            <a href="<?= base_url('entidades/nova') ?>"
+               class="btn btn-primary d-flex align-items-center gap-2"
+               id="graph-new-entity">
+                <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                <span class="d-none d-sm-inline">Nova entidade</span>
+            </a>
+        </div>
     </div>
 
     <?php if (empty($graphData['entities'])): ?>

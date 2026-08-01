@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Models\EntityModel;
 use App\Models\RelationshipModel;
+use App\Models\ResearchProjectModel;
 
 /**
  * GraphController — Página dedicada ao visualizador de grafo
@@ -12,11 +13,20 @@ class GraphController extends BaseController
 {
     public function index(): string
     {
-        $entityModel = new EntityModel();
-        $relModel    = new RelationshipModel();
+        $entityModel   = new EntityModel();
+        $relModel      = new RelationshipModel();
+        $researchModel = new ResearchProjectModel();
 
-        $allEntities = $entityModel->findAllRaw();
-        $allRels     = $relModel->findAllRaw();
+        $researchId = (int)($this->request->getGet('research_id') ?? 0);
+        $researches = $researchModel->findAllWithDocumentCount();
+
+        if ($researchId > 0) {
+            $allEntities = $entityModel->findByResearch($researchId);
+            $allRels     = $relModel->findByResearch($researchId);
+        } else {
+            $allEntities = $entityModel->findAllRaw();
+            $allRels     = $relModel->findAllRaw();
+        }
 
         // Mapear somente campos necessários para o vis-network
         $graphEntities = array_map(fn($e) => [
@@ -37,10 +47,12 @@ class GraphController extends BaseController
         ], $allRels);
 
         return view('graph/index', [
-            'graphData' => [
+            'graphData'         => [
                 'entities'      => $graphEntities,
                 'relationships' => $graphRels,
             ],
+            'researches'        => $researches,
+            'currentResearchId' => $researchId,
         ]);
     }
 }
