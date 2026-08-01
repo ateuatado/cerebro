@@ -148,6 +148,39 @@ ob_start();
                     </button>
                 </div>
 
+                <!-- Card de Vinculação de Pesquisas — Spec 9 -->
+                <div class="mt-3 p-3 rounded" style="background:var(--cbr-surface-2); border:1px solid var(--cbr-border);">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span style="font-size:.875rem;font-weight:600;color:var(--cbr-text)" class="d-flex align-items-center gap-2">
+                            <i class="bi bi-journal-bookmark" style="color:var(--cbr-primary)"></i> Pesquisas & Assuntos
+                        </span>
+                        <a href="<?= base_url('pesquisas') ?>" class="small text-subtle text-decoration-none" title="Gerenciar Pesquisas">
+                            <i class="bi bi-gear"></i>
+                        </a>
+                    </div>
+                    <?php if (empty($allResearches)): ?>
+                        <p class="text-subtle small mb-0">Nenhuma pesquisa cadastrada no sistema. <a href="<?= base_url('pesquisas/nova') ?>">Criar pesquisa</a>.</p>
+                    <?php else: ?>
+                        <form action="<?= base_url("documentos/{$docId}/salvar-pesquisas") ?>" method="POST">
+                            <?= csrf_field() ?>
+                            <div class="d-flex flex-wrap gap-2 mb-2" style="max-height: 120px; overflow-y: auto;">
+                                <?php foreach ($allResearches as $res): ?>
+                                    <?php $isAssoc = in_array($res['id'], $attachedResearchIds ?? []); ?>
+                                    <div class="form-check form-check-inline bg-dark px-2 py-1 rounded border border-secondary m-0">
+                                        <input class="form-check-input" type="checkbox" name="research_ids[]" value="<?= $res['id'] ?>" id="res_check_<?= $res['id'] ?>" <?= $isAssoc ? 'checked' : '' ?>>
+                                        <label class="form-check-label text-white small" for="res_check_<?= $res['id'] ?>">
+                                            <?= esc($res['title']) ?>
+                                        </label>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                            <button type="submit" class="btn btn-sm btn-outline-primary w-100 mt-1">
+                                <i class="bi bi-check2"></i> Atualizar Pesquisas do Documento
+                            </button>
+                        </form>
+                    <?php endif; ?>
+                </div>
+
             </div>
         </div>
 

@@ -60,6 +60,7 @@ $routes->group('documentos', ['filter' => 'auth'], function ($routes) {
     $routes->post('(:num)/extrair',         'ExtractionController::extract/$1');
     $routes->post('(:num)/vincular-arquivo', 'ExtractionController::attachFile/$1');
     $routes->get('(:num)/revisar',          'DocumentReviewController::review/$1');
+    $routes->post('(:num)/salvar-pesquisas', 'DocumentReviewController::updateResearches/$1');
     $routes->post('(:num)/aprovar-todas',   'ExtractionController::approveAll/$1');
 });
 

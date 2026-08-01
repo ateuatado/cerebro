@@ -126,11 +126,18 @@ class DocumentReviewController extends BaseController
 
         $transcriptionText = $attributes['conteudo_transcrito'] ?? $doc['description'] ?? '';
 
+        $researchModel = new \App\Models\ResearchProjectModel();
+        $allResearches = $researchModel->findAllWithDocumentCount();
+        $attachedResearches = $researchModel->getResearchesForDocument($id);
+        $attachedResearchIds = array_column($attachedResearches, 'id');
+
         return view('documents/review_workspace', [
-            'doc'               => $doc,
-            'attributes'        => $attributes,
-            'totalPages'        => $totalPages,
-            'transcriptionText' => $transcriptionText,
+            'doc'                 => $doc,
+            'attributes'          => $attributes,
+            'totalPages'          => $totalPages,
+            'transcriptionText'   => $transcriptionText,
+            'allResearches'       => $allResearches,
+            'attachedResearchIds' => $attachedResearchIds,
         ]);
     }
 
@@ -487,5 +494,31 @@ class DocumentReviewController extends BaseController
             'success' => true,
             'message' => 'Transcrição salva com sucesso no repositório!',
         ]);
+    }
+
+    /**
+     * Atualiza o vínculo de pesquisas do documento (/documentos/{id}/salvar-pesquisas)
+     */
+    public function updateResearches(int $id)
+    {
+        $doc = $this->entityModel->find($id);
+        if (!$doc || $doc['type'] !== 'document') {
+            return redirect()->to(base_url('documentos'))->with('error', 'Documento não encontrado.');
+        }
+
+        $selectedIds = (array)$this->request->getPost('research_ids');
+        $researchModel = new \App\Models\ResearchProjectModel();
+        
+        $db = \Config\Database::connect();
+        $db->table('research_documents')->where('document_id', $id)->delete();
+
+        foreach ($selectedIds as $rId) {
+            $rIdInt = (int)$rId;
+            if ($rIdInt > 0) {
+                $researchModel->attachDocument($rIdInt, $id);
+            }
+        }
+
+        return redirect()->to(base_url('documentos/' . $id . '/revisar'))->with('success', 'Pesquisas vinculadas atualizadas com sucesso!');
     }
 }
