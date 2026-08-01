@@ -95,7 +95,14 @@ $pendingCount = 0; // TODO: injetar via controller
                 Relações
             </a>
 
-            <div class="cbr-nav-section">Fontes</div>
+            <div class="cbr-nav-section">Fontes & Organização</div>
+
+            <a href="<?= base_url('pesquisas') ?>"
+               class="cbr-nav-link"
+               id="nav-researches">
+                <i class="bi bi-journal-bookmark" aria-hidden="true"></i>
+                Pesquisas & Assuntos
+            </a>
 
             <a href="<?= base_url('documentos') ?>"
                class="cbr-nav-link"
