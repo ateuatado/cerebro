@@ -74,4 +74,17 @@ class RelationshipModel extends Model
     {
         return $this->where('source_document_id', $documentId)->findAll();
     }
+
+    /**
+     * Busca relações cujos documentos de origem pertencem a uma pesquisa específica.
+     */
+    public function findByResearch(int $researchId): array
+    {
+        return $this->db->table('relationships r')
+            ->select('r.*')
+            ->join('research_documents rd', 'rd.document_id = r.source_document_id')
+            ->where('rd.research_id', $researchId)
+            ->get()
+            ->getResultArray();
+    }
 }

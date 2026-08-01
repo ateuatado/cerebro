@@ -55,4 +55,24 @@ class EntityModel extends Model
     {
         return $this->db->table('entities')->get()->getResultArray();
     }
+
+    /**
+     * Busca todas as entidades (nós) associadas a uma pesquisa:
+     * - Documentos vinculados diretamente à pesquisa.
+     * - Entidades presentes em relações lastreadas por documentos da pesquisa.
+     */
+    public function findByResearch(int $researchId): array
+    {
+        $sql = "
+            SELECT DISTINCT e.*
+            FROM entities e
+            LEFT JOIN research_documents rd ON rd.document_id = e.id AND e.type = 'document'
+            LEFT JOIN relationships r ON (r.source_entity_id = e.id OR r.target_entity_id = e.id)
+            LEFT JOIN research_documents rd_rel ON rd_rel.document_id = r.source_document_id
+            WHERE rd.research_id = ? OR rd_rel.research_id = ?
+            ORDER BY e.name ASC
+        ";
+
+        return $this->db->query($sql, [$researchId, $researchId])->getResultArray();
+    }
 }
