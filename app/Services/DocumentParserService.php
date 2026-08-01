@@ -58,7 +58,7 @@ class DocumentParserService
         }
 
         // Imagens: OCR
-        if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'bmp', 'tiff', 'tif'])) {
+        if (in_array($ext, ['jpg', 'jpeg', 'jfif', 'png', 'webp', 'bmp', 'tiff', 'tif'])) {
             $ocrText = $this->performOcr($filePath, $ext);
             return ['text' => $ocrText, 'pages' => 1];
         }
@@ -377,10 +377,10 @@ class DocumentParserService
 
         $mime = $info['mime'];
         $src  = match ($mime) {
-            'image/jpeg' => @imagecreatefromjpeg($imgPath),
+            'image/jpeg', 'image/pjpeg', 'image/jfif' => @imagecreatefromjpeg($imgPath),
             'image/png'  => @imagecreatefrompng($imgPath),
             'image/webp' => @imagecreatefromwebp($imgPath),
-            default      => null,
+            default      => @imagecreatefromjpeg($imgPath),
         };
 
         if (!$src) return false;
@@ -485,10 +485,10 @@ class DocumentParserService
         // Recorte via PHP GD (funciona sem Python, usando imagecopy)
         $mime = $info['mime'];
         $src  = match ($mime) {
-            'image/jpeg' => @imagecreatefromjpeg($imgPath),
+            'image/jpeg', 'image/pjpeg', 'image/jfif' => @imagecreatefromjpeg($imgPath),
             'image/png'  => @imagecreatefrompng($imgPath),
             'image/webp' => @imagecreatefromwebp($imgPath),
-            default      => null,
+            default      => @imagecreatefromjpeg($imgPath),
         };
 
         if ($src) {
