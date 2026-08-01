@@ -52,7 +52,7 @@ class DocumentReviewController extends BaseController
     {
         $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
 
-        if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'bmp'])) {
+        if (in_array($ext, ['jpg', 'jpeg', 'jfif', 'png', 'webp', 'bmp'])) {
             return file_exists($filePath) ? $filePath : null;
         }
 

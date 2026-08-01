@@ -72,7 +72,7 @@ class BatchIngestController extends BaseController
             $parseResult = $docParser->parseFile($savedFilePath, $ext);
             $content     = $parseResult['text'] ?? '';
 
-            if (empty(trim($content)) && !in_array($ext, ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'bmp', 'tiff', 'tif'])) {
+            if (empty(trim($content)) && !in_array($ext, ['pdf', 'jpg', 'jpeg', 'jfif', 'png', 'webp', 'bmp', 'tiff', 'tif'])) {
                 return $this->response->setJSON([
                     'success'  => false,
                     'fileName' => $fileName,

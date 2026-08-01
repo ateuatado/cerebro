@@ -41,7 +41,7 @@ class ExtractionController extends BaseController
 
         $file = $this->request->getFile('file');
         if (!$file || !$file->isValid()) {
-            session()->setFlashdata('error', 'Selecione um arquivo de imagem (JPG, PNG) ou PDF válido.');
+            session()->setFlashdata('error', 'Selecione um arquivo de imagem (JPG, JFIF, PNG) ou PDF válido.');
             return redirect()->to('documentos/' . $documentId . '/revisar');
         }
 
