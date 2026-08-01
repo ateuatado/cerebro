@@ -8,4 +8,4 @@
 - [x] `T6`: Atualizar o header/navbar principal adicionando o menu "Pesquisas"
 - [x] `T7`: Atualizar `GraphController.php` e `app/Views/graph/index.php` adicionando o seletor dropdown de pesquisas para filtragem dinâmica do Grafo Vis-Network
 - [x] `T8`: Atualizar `DocumentReviewController.php` e `review_workspace.php` permitindo associar o documento a uma pesquisa durante a revisão
-- [ ] `T9`: Executar testes e seed de verificação para validar a filtragem do grafo pela pesquisa "Baby de Andrade"
+- [x] `T9`: Executar testes e seed de verificação para validar a filtragem do grafo pela pesquisa "Baby de Andrade"
