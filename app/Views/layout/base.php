@@ -39,9 +39,13 @@ $pendingCount = 0; // TODO: injetar via controller
 
     <?php foreach ($pageCss ?? [] as $css): 
         $cssClean = ltrim(str_replace('../', '', $css), '/');
+        $cssPath  = str_starts_with($cssClean, 'vendor/')
+            ? FCPATH . 'assets/' . $cssClean
+            : FCPATH . 'assets/css/' . $cssClean;
+        $v = file_exists($cssPath) ? filemtime($cssPath) : time();
         $cssUrl   = str_starts_with($cssClean, 'vendor/')
-            ? base_url('assets/' . $cssClean)
-            : base_url('assets/css/' . $cssClean);
+            ? base_url('assets/' . $cssClean . '?v=' . $v)
+            : base_url('assets/css/' . $cssClean . '?v=' . $v);
     ?>
     <link rel="stylesheet" href="<?= $cssUrl ?>">
     <?php endforeach; ?>
@@ -274,9 +278,13 @@ $pendingCount = 0; // TODO: injetar via controller
 
 <?php foreach ($pageJs ?? [] as $js): 
     $jsClean = ltrim(str_replace('../', '', $js), '/');
+    $jsPath  = str_starts_with($jsClean, 'vendor/')
+        ? FCPATH . 'assets/' . $jsClean
+        : FCPATH . 'assets/js/' . $jsClean;
+    $v = file_exists($jsPath) ? filemtime($jsPath) : time();
     $jsUrl   = str_starts_with($jsClean, 'vendor/')
-        ? base_url('assets/' . $jsClean)
-        : base_url('assets/js/' . $jsClean);
+        ? base_url('assets/' . $jsClean . '?v=' . $v)
+        : base_url('assets/js/' . $jsClean . '?v=' . $v);
 ?>
 <script src="<?= $jsUrl ?>"></script>
 <?php endforeach; ?>

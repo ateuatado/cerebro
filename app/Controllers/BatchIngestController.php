@@ -54,7 +54,7 @@ class BatchIngestController extends BaseController
         }
 
         $fileName = $file->getClientName();
-        $ext      = strtolower($file->getClientExtension());
+        $ext      = strtolower(pathinfo($fileName, PATHINFO_EXTENSION) ?: $file->getClientExtension());
 
         try {
             // 1. Salvar o arquivo permanentemente em writable/uploads/documents/
