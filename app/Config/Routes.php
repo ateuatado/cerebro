@@ -22,6 +22,8 @@ $routes->group('entidades', ['filter' => 'auth'], function ($routes) {
     $routes->post('nova',                 'EntityController::store');
     $routes->get('(:num)',                'EntityController::show/$1');
     $routes->post('(:num)/confirmar',     'EntityController::confirm/$1');
+    $routes->post('(:num)/atributos',         'EntityController::addAttribute/$1');
+    $routes->post('(:num)/atributos/remover', 'EntityController::removeAttribute/$1');
 });
 
 // Autocomplete JSON (AJAX, protegido)

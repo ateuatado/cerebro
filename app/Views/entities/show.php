@@ -131,6 +131,13 @@ ob_start();
                     <i class="bi bi-card-list" aria-hidden="true"></i>
                     Atributos
                 </h2>
+                <button type="button"
+                        class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1 ms-auto"
+                        data-bs-toggle="modal"
+                        data-bs-target="#modalAddAttribute">
+                    <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                    <span>Adicionar atributo</span>
+                </button>
             </div>
             <div class="cbr-detail-section-body">
                 <?php
@@ -166,19 +173,37 @@ ob_start();
                     ?>
                     <div class="cbr-attr-row" role="listitem">
                         <div class="cbr-attr-key"><?= esc($label) ?></div>
-                        <div class="cbr-attr-val">
-                            <?php foreach ($value as $subKey => $subVal): ?>
+                        <div class="cbr-attr-val d-flex justify-content-between align-items-start">
                             <div>
-                                <span class="text-subtle" style="font-size:.75rem"><?= esc(ucwords(str_replace('_',' ',$subKey))) ?>:</span>
-                                <?= esc($subVal) ?>
+                                <?php foreach ($value as $subKey => $subVal): ?>
+                                <div>
+                                    <span class="text-subtle" style="font-size:.75rem"><?= esc(ucwords(str_replace('_',' ',$subKey))) ?>:</span>
+                                    <?= esc($subVal) ?>
+                                </div>
+                                <?php endforeach; ?>
                             </div>
-                            <?php endforeach; ?>
+                            <form action="<?= base_url('entidades/' . $entity['id'] . '/atributos/remover') ?>" method="post" style="display:inline" onsubmit="return confirm('Remover o atributo \'<?= esc($label) ?>\'?');">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="attr_key" value="<?= esc($key) ?>">
+                                <button type="submit" class="btn btn-link text-danger p-0 border-0 ms-2" title="Remover atributo" style="font-size:.875rem">
+                                    <i class="bi bi-x-circle"></i>
+                                </button>
+                            </form>
                         </div>
                     </div>
                     <?php else: ?>
                     <div class="cbr-attr-row" role="listitem">
                         <div class="cbr-attr-key"><?= esc($label) ?></div>
-                        <div class="cbr-attr-val"><?= nl2br(esc($value)) ?></div>
+                        <div class="cbr-attr-val d-flex justify-content-between align-items-start">
+                            <div style="flex:1"><?= nl2br(esc($value)) ?></div>
+                            <form action="<?= base_url('entidades/' . $entity['id'] . '/atributos/remover') ?>" method="post" style="display:inline" onsubmit="return confirm('Remover o atributo \'<?= esc($label) ?>\'?');">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="attr_key" value="<?= esc($key) ?>">
+                                <button type="submit" class="btn btn-link text-danger p-0 border-0 ms-2 opacity-75" title="Remover atributo" style="font-size:.875rem">
+                                    <i class="bi bi-x-circle"></i>
+                                </button>
+                            </form>
+                        </div>
                     </div>
                     <?php endif; endforeach; ?>
                 </div>
@@ -186,7 +211,7 @@ ob_start();
             </div>
         </div>
 
-        <!-- ─── Visualizador do Arquivo Original (se Documento) ─────── -->
+        <!-- ─── Visualizador do Arquivo Original (se a entidade for Documento) ─────── -->
         <?php if ($entity['type'] === 'document'): ?>
         <div class="cbr-detail-section" style="grid-column: 1 / -1">
             <div class="cbr-detail-section-header">
@@ -210,7 +235,7 @@ ob_start();
             </div>
             <div class="cbr-detail-section-body" style="text-align:center;background:var(--cbr-surface-2)">
                 <?php if ($hasFile): ?>
-                    <?php if (in_array($format, ['jpg', 'jpeg', 'png', 'webp', 'bmp'])): ?>
+                    <?php if (in_array($format, ['jpg', 'jpeg', 'jfif', 'png', 'webp', 'bmp'])): ?>
                     <div class="p-2" style="max-height:600px;overflow:auto">
                         <img src="<?= base_url('documentos/' . $entity['id'] . '/arquivo') ?>"
                              alt="<?= esc($entity['name']) ?>"
@@ -272,14 +297,32 @@ ob_start();
                     <div class="cbr-attr-row">
                         <div class="cbr-attr-key">Criado por</div>
                         <div class="cbr-attr-val">
-                            <?= $createdById ? 'Usuário #' . (int)$createdById : '<span class="text-subtle">—</span>' ?>
+                            <?php if (!empty($creatorUser)): ?>
+                                <strong><?= esc($creatorUser['name']) ?></strong>
+                                <?php if (!empty($creatorUser['role'])): ?>
+                                <span class="badge bg-secondary ms-1" style="font-size:.65rem;vertical-align:middle"><?= esc(ucfirst($creatorUser['role'])) ?></span>
+                                <?php endif; ?>
+                            <?php elseif ($createdById): ?>
+                                Usuário #<?= (int)$createdById ?>
+                            <?php else: ?>
+                                <span class="text-subtle">—</span>
+                            <?php endif; ?>
                         </div>
                     </div>
                     <?php if ($entity['status'] === 'confirmed'): ?>
                     <div class="cbr-attr-row">
                         <div class="cbr-attr-key">Validado por</div>
                         <div class="cbr-attr-val">
-                            <?= $validatedById ? 'Usuário #' . (int)$validatedById : '<span class="text-subtle">—</span>' ?>
+                            <?php if (!empty($validatorUser)): ?>
+                                <strong><?= esc($validatorUser['name']) ?></strong>
+                                <?php if (!empty($validatorUser['role'])): ?>
+                                <span class="badge bg-secondary ms-1" style="font-size:.65rem;vertical-align:middle"><?= esc(ucfirst($validatorUser['role'])) ?></span>
+                                <?php endif; ?>
+                            <?php elseif ($validatedById): ?>
+                                Usuário #<?= (int)$validatedById ?>
+                            <?php else: ?>
+                                <span class="text-subtle">—</span>
+                            <?php endif; ?>
                         </div>
                     </div>
                     <?php endif; ?>
@@ -306,6 +349,77 @@ ob_start();
         </div>
 
     </div><!-- /.cbr-detail-grid -->
+
+    <!-- ─── Fonte Primária & Trecho de Origem (se extraído de documentos fontes) ─── -->
+    <?php if (!empty($sourceDocuments)): ?>
+    <div class="cbr-detail-section mt-3">
+        <div class="cbr-detail-section-header">
+            <h2 class="cbr-detail-section-title">
+                <i class="bi bi-file-earmark-code" aria-hidden="true"></i>
+                Fonte Primária & Trecho de Origem (<?= count($sourceDocuments) ?>)
+            </h2>
+        </div>
+        <div class="cbr-detail-section-body">
+            <?php foreach ($sourceDocuments as $sDoc): ?>
+            <div class="p-3 mb-3 rounded border" style="background:var(--cbr-surface-2);border-color:var(--cbr-border)!important">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-file-earmark-text text-primary" style="font-size:1.25rem"></i>
+                        <strong>
+                            <a href="<?= base_url('entidades/' . $sDoc['id']) ?>" class="text-decoration-none text-light">
+                                <?= esc($sDoc['name']) ?>
+                            </a>
+                        </strong>
+                        <span class="badge bg-secondary" style="font-size:.7rem">Documento Fonte #<?= $sDoc['id'] ?></span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <?php if ($sDoc['uploader']): ?>
+                        <span class="text-subtle" style="font-size:.8rem">
+                            <i class="bi bi-person-check me-1"></i> Pesquisador: <strong><?= esc($sDoc['uploader']['name']) ?></strong>
+                        </span>
+                        <?php endif; ?>
+                        <?php if ($sDoc['has_file']): ?>
+                        <a href="<?= base_url('documentos/' . $sDoc['id'] . '/revisar') ?>" class="btn btn-sm btn-warning text-dark fw-bold" style="font-size:.75rem">
+                            <i class="bi bi-crop me-1"></i> Abrir Workspace
+                        </a>
+                        <a href="<?= base_url('documentos/' . $sDoc['id'] . '/arquivo') ?>" target="_blank" class="btn btn-sm btn-outline-primary" style="font-size:.75rem">
+                            <i class="bi bi-box-arrow-up-right me-1"></i> Ver Arquivo
+                        </a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <?php if (!empty($sDoc['excerpts'])): ?>
+                <div class="mt-2">
+                    <p class="text-subtle mb-1" style="font-size:.75rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase">
+                        <i class="bi bi-quote me-1"></i> Trecho de Origem / Citação Documental:
+                    </p>
+                    <?php foreach ($sDoc['excerpts'] as $exc): ?>
+                    <blockquote class="p-2 mb-2 rounded border-start border-3 border-warning" style="background:var(--cbr-surface-1);font-style:italic;font-size:.875rem;color:var(--cbr-text)">
+                        "<?= nl2br(esc($exc)) ?>"
+                    </blockquote>
+                    <?php endforeach; ?>
+                </div>
+                <?php endif; ?>
+
+                <?php if ($sDoc['has_file']): ?>
+                <div class="mt-3 text-center p-2 rounded border" style="background:var(--cbr-surface-1);max-height:400px;overflow:auto;border-color:var(--cbr-border)!important">
+                    <?php if (in_array($sDoc['format'], ['jpg', 'jpeg', 'jfif', 'png', 'webp', 'bmp'])): ?>
+                    <img src="<?= base_url('documentos/' . $sDoc['id'] . '/arquivo') ?>"
+                         alt="<?= esc($sDoc['name']) ?>"
+                         class="img-fluid rounded border shadow-sm"
+                         style="max-height:350px;object-fit:contain">
+                    <?php elseif ($sDoc['format'] === 'pdf'): ?>
+                    <iframe src="<?= base_url('documentos/' . $sDoc['id'] . '/arquivo') ?>"
+                            style="width:100%;height:350px;border:none"></iframe>
+                    <?php endif; ?>
+                </div>
+                <?php endif; ?>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <!-- ─── Relações ──────────────────────────────────────────── -->
     <?php
@@ -418,6 +532,69 @@ ob_start();
             <?php endif; // totalRelations ?>
         </div>
     </div>
+
+    <!-- Modal Adicionar Atributo -->
+    <div class="modal fade" id="modalAddAttribute" tabindex="-1" aria-labelledby="modalAddAttributeLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <form action="<?= base_url('entidades/' . $entity['id'] . '/atributos') ?>" method="post" class="modal-content" style="background:var(--cbr-surface-1);color:var(--cbr-text);border:1px solid var(--cbr-border)">
+                <?= csrf_field() ?>
+                <div class="modal-header border-bottom border-secondary">
+                    <h5 class="modal-title" id="modalAddAttributeLabel">
+                        <i class="bi bi-plus-circle me-1"></i> Adicionar Atributo
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="attr_key_select" class="form-label text-subtle" style="font-size:.85rem">Nome do Atributo</label>
+                        <select name="attr_key" id="attr_key_select" class="form-select" style="background:var(--cbr-surface-2);color:var(--cbr-text);border-color:var(--cbr-border)">
+                            <option value="ocupacao">Ocupação / Cargo</option>
+                            <option value="nascimento">Data de Nascimento</option>
+                            <option value="naturalidade">Naturalidade</option>
+                            <option value="nacionalidade">Nacionalidade</option>
+                            <option value="filiacao">Filiação</option>
+                            <option value="status">Status (ex: falecido, ativo)</option>
+                            <option value="municipio">Município</option>
+                            <option value="estado">Estado / UF</option>
+                            <option value="alcunha">Alcunha / Apelido</option>
+                            <option value="notas">Notas / Observações</option>
+                            <option value="outro">Outro (Personalizado)...</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="custom_attr_key_group" style="display:none">
+                        <label for="custom_attr_key" class="form-label text-subtle" style="font-size:.85rem">Nome Personalizado (ex: religiao, partido)</label>
+                        <input type="text" name="custom_attr_key" id="custom_attr_key" class="form-control" placeholder="digite_o_nome_do_atributo" style="background:var(--cbr-surface-2);color:var(--cbr-text);border-color:var(--cbr-border)">
+                    </div>
+                    <div class="mb-3">
+                        <label for="attr_value" class="form-label text-subtle" style="font-size:.85rem">Valor</label>
+                        <textarea name="attr_value" id="attr_value" class="form-control" rows="3" required placeholder="Digite o valor do atributo..." style="background:var(--cbr-surface-2);color:var(--cbr-text);border-color:var(--cbr-border)"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-top border-secondary">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-check-lg me-1"></i> Salvar Atributo
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const select = document.getElementById('attr_key_select');
+        const customGroup = document.getElementById('custom_attr_key_group');
+        if (select && customGroup) {
+            select.addEventListener('change', function() {
+                if (this.value === 'outro') {
+                    customGroup.style.display = 'block';
+                } else {
+                    customGroup.style.display = 'none';
+                }
+            });
+        }
+    });
+    </script>
 
 </div><!-- /.fade-in-up -->
 

@@ -234,7 +234,7 @@ class IngestFolderCommand extends BaseCommand
             new \RecursiveDirectoryIterator($dir, \RecursiveDirectoryIterator::SKIP_DOTS)
         );
 
-        $allowedExtensions = ['txt', 'md', 'json', 'csv', 'pdf', 'jpg', 'jpeg', 'png', 'webp', 'bmp'];
+        $allowedExtensions = ['txt', 'md', 'json', 'csv', 'pdf', 'jpg', 'jpeg', 'jfif', 'png', 'webp', 'bmp'];
 
         foreach ($iterator as $file) {
             if ($file->isFile()) {

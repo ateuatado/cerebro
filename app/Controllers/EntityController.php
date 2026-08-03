@@ -123,6 +123,11 @@ class EntityController extends BaseController
             $entity['attributes'] = json_decode($entity['attributes'], true) ?? [];
         }
 
+        // 1. Carregar dados dos usuários pesquisadores (criador e validador)
+        $userModel     = new \App\Models\UserModel();
+        $creatorUser   = !empty($entity['created_by']) ? $userModel->find((int)$entity['created_by']) : null;
+        $validatorUser = !empty($entity['validated_by']) ? $userModel->find((int)$entity['validated_by']) : null;
+
         // Relações onde esta entidade aparece
         $relationsAsSource = $this->relModel->findBySource($id);
         $relationsAsTarget = $this->relModel->findByTarget($id);
@@ -139,12 +144,139 @@ class EntityController extends BaseController
             if ($e) $relatedEntities[$eid] = $e;
         }
 
+        // 2. Coletar documentos fontes e trechos de citação vinculados às relações da entidade
+        $allRelations = array_merge($relationsAsSource, $relationsAsTarget);
+        $sourceDocuments = [];
+        $docIds = [];
+
+        foreach ($allRelations as $rel) {
+            $docId = (int)($rel['source_document_id'] ?? 0);
+            if ($docId > 0) {
+                if (!isset($docIds[$docId])) {
+                    $docIds[$docId] = [
+                        'doc_id'   => $docId,
+                        'excerpts' => [],
+                    ];
+                }
+
+                $ref = is_string($rel['source_reference'] ?? null)
+                    ? (json_decode($rel['source_reference'], true) ?? [])
+                    : ($rel['source_reference'] ?? []);
+
+                $trecho = $ref['trecho'] ?? null;
+                if (!empty($trecho) && !in_array($trecho, $docIds[$docId]['excerpts'])) {
+                    $docIds[$docId]['excerpts'][] = $trecho;
+                }
+            }
+        }
+
+        foreach ($docIds as $docId => $info) {
+            $docEntity = $this->entityModel->find($docId);
+            if ($docEntity) {
+                $docAttrs = is_string($docEntity['attributes'])
+                    ? (json_decode($docEntity['attributes'], true) ?? [])
+                    : ($docEntity['attributes'] ?? []);
+
+                $docUploader = !empty($docEntity['created_by']) ? $userModel->find((int)$docEntity['created_by']) : null;
+                $filePath    = $docAttrs['caminho_arquivo'] ?? '';
+                $format      = strtolower($docAttrs['formato'] ?? pathinfo($docEntity['name'], PATHINFO_EXTENSION));
+
+                $sourceDocuments[] = [
+                    'id'          => $docId,
+                    'name'        => $docEntity['name'],
+                    'attributes'  => $docAttrs,
+                    'uploader'    => $docUploader,
+                    'excerpts'    => $info['excerpts'],
+                    'has_file'    => !empty($filePath) && file_exists($filePath),
+                    'format'      => $format,
+                    'created_at'  => $docEntity['created_at'] ?? null,
+                ];
+            }
+        }
+
         return view('entities/show', [
             'entity'            => $entity,
+            'creatorUser'       => $creatorUser,
+            'validatorUser'     => $validatorUser,
+            'sourceDocuments'   => $sourceDocuments,
             'relationsAsSource' => $relationsAsSource,
             'relationsAsTarget' => $relationsAsTarget,
             'relatedEntities'   => $relatedEntities,
         ]);
+    }
+
+    /**
+     * POST /entidades/{id}/atributos — Adiciona ou atualiza um atributo JSONB
+     */
+    public function addAttribute(int $id)
+    {
+        $entity = $this->entityModel->find($id);
+        if (!$entity) {
+            session()->setFlashdata('error', 'Entidade não encontrada.');
+            return redirect()->to('entidades');
+        }
+
+        $key       = trim((string)$this->request->getPost('attr_key'));
+        $val       = trim((string)$this->request->getPost('attr_value'));
+        $customKey = trim((string)$this->request->getPost('custom_attr_key'));
+
+        if ($key === 'outro' && !empty($customKey)) {
+            $key = $customKey;
+        } elseif (empty($key) && !empty($customKey)) {
+            $key = $customKey;
+        }
+
+        // Sanitização da chave (snake_case minúsculo sem caracteres especiais)
+        $key = strtolower(preg_replace('/[^a-zA-Z0-9_]/', '_', str_replace(' ', '_', $key)));
+        $key = trim($key, '_');
+
+        if (empty($key) || $val === '') {
+            session()->setFlashdata('error', 'O nome do atributo e o valor são obrigatórios.');
+            return redirect()->to('entidades/' . $id);
+        }
+
+        $attrs = is_string($entity['attributes'])
+            ? (json_decode($entity['attributes'], true) ?? [])
+            : ($entity['attributes'] ?? []);
+
+        $attrs[$key] = $val;
+
+        $this->entityModel->update($id, [
+            'attributes' => json_encode($attrs, JSON_UNESCAPED_UNICODE),
+        ]);
+
+        session()->setFlashdata('success', 'Atributo "' . $key . '" salvo com sucesso.');
+        return redirect()->to('entidades/' . $id);
+    }
+
+    /**
+     * POST /entidades/{id}/atributos/remover — Remove um atributo do JSONB
+     */
+    public function removeAttribute(int $id)
+    {
+        $entity = $this->entityModel->find($id);
+        if (!$entity) {
+            session()->setFlashdata('error', 'Entidade não encontrada.');
+            return redirect()->to('entidades');
+        }
+
+        $key = trim((string)$this->request->getPost('attr_key'));
+
+        if (!empty($key)) {
+            $attrs = is_string($entity['attributes'])
+                ? (json_decode($entity['attributes'], true) ?? [])
+                : ($entity['attributes'] ?? []);
+
+            unset($attrs[$key]);
+
+            $this->entityModel->update($id, [
+                'attributes' => json_encode($attrs, JSON_UNESCAPED_UNICODE),
+            ]);
+
+            session()->setFlashdata('success', 'Atributo "' . $key . '" removido com sucesso.');
+        }
+
+        return redirect()->to('entidades/' . $id);
     }
 
     /**
