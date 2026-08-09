@@ -90,12 +90,15 @@ class DeepSeekService
      * Lê uma imagem de recorte (Base64) diretamente via DeepSeek Vision
      * e extrai entidades e relações do manuscrito.
      * 
-     * @param string $docTitle   Título do documento
+     * @param string $docTitle    Título do documento
      * @param string $imageBase64 Dados da imagem em Base64 (com prefixo data:image/...)
+     * @param array  $vocabulary  Vocabulário controlado agrupado por tipo (Spec 11)
      * @return array ['transcription', 'entities', 'relationships']
      */
-    public function extractFromCropImage(string $docTitle, string $imageBase64): array
+    public function extractFromCropImage(string $docTitle, string $imageBase64, array $vocabulary = []): array
     {
+        $vocabSection = $this->buildVocabularyPromptSection($vocabulary);
+
         $systemPrompt = <<<PROMPT
 Você é um historiador e paleógrafo especialista em leitura de documentos manuscritos cursivos do Brasil das décadas de 1920 e 1930 (boletins de batalhões militares, registros de prisões, jornais e processos judiciais).
 
@@ -103,14 +106,21 @@ A imagem a seguir é um recorte de um documento manuscrito em caligrafia cursiva
 
 LEIA DIRETAMENTE A IMAGEM e:
 1. "transcription": Faça a transcrição completa e fiel do texto manuscrito visível.
-2. "entities": Extraia todas as pessoas (com patentes/cargos em atributos), locais, eventos e organizações.
+2. "entities": Extraia todas as pessoas (com patentes/cargos em atributos), locais e eventos.
 3. "relationships": Extraia todas as conexões entre essas entidades.
 
+TIPOS VÁLIDOS — use EXCLUSIVAMENTE estes valores no campo "type":
+- "person": pessoas físicas identificáveis pelo nome
+- "location": lugares, cidades, ruas, estabelecimentos, unidades militares como lugar
+- "event": acontecimentos, greves, prisões, comícios, publicações, julgamentos
+- "document": fontes documentais primárias (jornais, ofícios, processos)
+NUNCA use tipos como "organization", "institution", "publication" ou outros não listados acima.
+{$vocabSection}
 Retorne EXCLUSIVAMENTE um JSON:
 {
   "transcription": "Texto completo transcrito do manuscrito na imagem...",
   "entities": [
-    {"name": "Nome", "type": "person|location|event", "attributes": {"cargo": "..."}}
+    {"name": "Nome", "type": "person|location|event|document", "attributes": {"cargo": "..."}}
   ],
   "relationships": [
     {
@@ -224,11 +234,13 @@ PROMPT;
     /**
      * Extração de alta densidade em documentos longos (ex: jornais, processos extensos),
      * dividindo o texto em blocos sequenciais para extrair dezenas/centenas de relações sem truncamento da IA.
+     *
+     * @param array $vocabulary Vocabulário controlado agrupado por tipo (Spec 11)
      */
-    public function extractKnowledgeChunked(string $docTitle, string $docText, array $extraAttributes = [], int $chunkSize = 10000): array
+    public function extractKnowledgeChunked(string $docTitle, string $docText, array $extraAttributes = [], int $chunkSize = 10000, array $vocabulary = []): array
     {
         if (\strlen($docText) <= $chunkSize) {
-            return $this->extractKnowledge($docTitle, $docText, $extraAttributes);
+            return $this->extractKnowledge($docTitle, $docText, $extraAttributes, $vocabulary);
         }
 
         $lines = \explode("\n", $docText);
@@ -252,7 +264,7 @@ PROMPT;
         foreach ($chunks as $index => $chunkText) {
             $chunkTitle = "{$docTitle} (Parte " . ($index + 1) . " de " . \count($chunks) . ")";
             try {
-                $res = $this->extractKnowledge($chunkTitle, $chunkText, $extraAttributes);
+                $res = $this->extractKnowledge($chunkTitle, $chunkText, $extraAttributes, $vocabulary);
 
                 foreach ($res['entities'] as $entity) {
                     $name = \trim($entity['name'] ?? '');
@@ -379,4 +391,4 @@ PROMPT;
         $lines[] = "Somente introduza chave nova se nenhuma existente couber.\n";
         return implode("\n", $lines);
     }
-
+}

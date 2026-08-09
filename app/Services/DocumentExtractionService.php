@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\EntityModel;
 use App\Models\RelationshipModel;
+use App\Models\EntityAttributeVocabularyModel;
 use App\Services\DeepSeekService;
 
 /**
@@ -120,10 +121,14 @@ class DocumentExtractionService
             $docTitle   = $doc['name'] ?? 'Documento #' . $documentId;
             $extraction = [];
 
+            // Carregar vocabulário controlado para injeção nos prompts (Spec 11)
+            $vocabModel = new EntityAttributeVocabularyModel();
+            $vocabulary = $vocabModel->getAllGroupedByType();
+
             // 1. Tentar Gemini 2.0 Flash primeiro (1 chamada ultra-rápida de ~8s para até 50.000 caracteres)
             if ($this->geminiService->isAvailable()) {
                 try {
-                    $extraction = $this->geminiService->extractKnowledgeFromText($docTitle, $fullText);
+                    $extraction = $this->geminiService->extractKnowledgeFromText($docTitle, $fullText, $vocabulary);
                 } catch (\Throwable $geminiErr) {
                     log_message('warning', 'Gemini extraction error, falling back to DeepSeek: ' . $geminiErr->getMessage());
                 }
@@ -131,7 +136,7 @@ class DocumentExtractionService
 
             // 2. Fallback: DeepSeek chunked em blocos grandes de 10.000 caracteres (máx 4-5 chamadas)
             if (empty($extraction['entities'])) {
-                $extraction = $this->deepSeekService->extractKnowledgeChunked($docTitle, $fullText, $attributes, 10000);
+                $extraction = $this->deepSeekService->extractKnowledgeChunked($docTitle, $fullText, $attributes, 10000, $vocabulary);
             }
 
             $extractedEntities = $extraction['entities'] ?? [];
