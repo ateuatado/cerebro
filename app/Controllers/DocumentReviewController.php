@@ -3,9 +3,11 @@
 namespace App\Controllers;
 
 use App\Models\EntityModel;
+use App\Models\EntityAttributeVocabularyModel;
 use App\Services\DocumentParserService;
 use App\Services\DeepSeekService;
 use App\Services\GeminiVisionService;
+
 
 /**
  * DocumentReviewController — Workspace Interativo de Transcrição Histórica (Spec 7 & Spec 8)
@@ -298,8 +300,9 @@ class DocumentReviewController extends BaseController
     }
 
     /**
-     * Spec 8: Extrai Entidades & Grafo a partir da Seleção de Região em 1-Clique (/api/documentos/{id}/pagina/{page}/extrair-entidades-regiao)
+     * Spec 8: Extrai Entidades & Grafo a partir da Seleção de Região em 1-Clique
      * Usa Gemini Vision para leitura da imagem + DeepSeek para extração de entidades
+     * Spec 11: injeta vocabulário controlado no prompt da IA
      */
     public function extractEntitiesFromRegion(int $id, int $page)
     {
@@ -315,14 +318,19 @@ class DocumentReviewController extends BaseController
                 return $this->response->setJSON(['success' => false, 'error' => 'Nenhum recorte de imagem recebido.']);
             }
 
-            session_write_close(); // Libera o lock da sessão para permitir navegação paralela (ex: /grafo)
+            session_write_close();
+
+            // Carrega vocabulário controlado para injetar no prompt (Spec 11)
+            $vocabModel = new EntityAttributeVocabularyModel();
+            $vocabulary = $vocabModel->getAllGroupedByType();
 
             // Tenta usar Gemini Vision para leitura + DeepSeek para entidades
             if ($this->geminiService->isAvailable()) {
                 try {
                     $aiResult = $this->geminiService->extractFromImage(
                         $doc['name'] . ' - Página ' . $page,
-                        $base64Crop
+                        $base64Crop,
+                        $vocabulary
                     );
 
                     if (!empty($aiResult['transcription'])) {
@@ -348,7 +356,8 @@ class DocumentReviewController extends BaseController
                     try {
                         $aiResult = $this->deepSeekService->extractFromCropText(
                             $doc['name'] . ' - Página ' . $page,
-                            $ocrText
+                            $ocrText,
+                            $vocabulary
                         );
                         return $this->response->setJSON([
                             'success'       => true,
@@ -363,7 +372,7 @@ class DocumentReviewController extends BaseController
             }
 
             return $this->response->setJSON([
-                'success' => true,
+                'success'       => true,
                 'transcription' => '[Não foi possível extrair texto deste recorte — os serviços de IA e OCR não estão disponíveis no momento.]',
                 'entities'      => [],
                 'relationships' => [],
@@ -375,7 +384,9 @@ class DocumentReviewController extends BaseController
     }
 
     /**
-     * Spec 8: Confirma e salva as entidades/relações aprovadas no Grafo de Hipóteses (/api/documentos/{id}/confirmar-entidades-regiao)
+     * Spec 8 + Spec 11: Confirma e salva entidades/relações aprovadas no Grafo de Hipóteses.
+     * Validação defensiva de tipo: entidades com tipo inválido são ignoradas individualmente
+     * (não causam crash nem descartam o lote inteiro).
      */
     public function confirmRegionEntities(int $id)
     {
@@ -393,11 +404,24 @@ class DocumentReviewController extends BaseController
         $createdEntitiesCount = 0;
         $createdRelsCount     = 0;
         $entityMap            = [];
+        $skippedEntities      = []; // Entidades ignoradas por tipo inválido
 
         foreach ($entities as $e) {
             $name = trim($e['name'] ?? '');
-            $type = $e['type'] ?? 'person';
+            $type = trim($e['type'] ?? '');
+
             if (empty($name)) continue;
+
+            // Validação defensiva de tipo (Spec 11)
+            if (!EntityAttributeVocabularyModel::isValidType($type)) {
+                log_message('warning', "confirmRegionEntities: tipo inválido ignorado: '{$type}' para entidade '{$name}'");
+                $skippedEntities[] = [
+                    'name'   => $name,
+                    'type'   => $type,
+                    'reason' => "Tipo '{$type}' não reconhecido pelo sistema. Use: person, location, event ou document.",
+                ];
+                continue;
+            }
 
             $existing = $db->table('entities')
                            ->where('name', $name)
@@ -408,13 +432,20 @@ class DocumentReviewController extends BaseController
             if ($existing) {
                 $entityMap[$name] = $existing['id'];
             } else {
+                // Mescla atributos editados pelo pesquisador com os retornados pela IA
+                $attributes = $e['attributes'] ?? [];
+                if (!is_array($attributes)) {
+                    $attributes = [];
+                }
+
                 $newId = $this->entityModel->insert([
-                    'name'        => $name,
-                    'type'        => $type,
-                    'status'      => 'hypothesis',
-                    'description' => "Extraído do documento manuscrito: {$doc['name']}",
-                    'attributes'  => json_encode($e['attributes'] ?? [], JSON_UNESCAPED_UNICODE),
-                    'created_at'  => date('Y-m-d H:i:s'),
+                    'name'       => $name,
+                    'type'       => $type,
+                    'status'     => 'hypothesis',
+                    'attributes' => json_encode(
+                        array_filter($attributes, fn($v) => $v !== null && $v !== ''),
+                        JSON_UNESCAPED_UNICODE
+                    ),
                 ]);
                 if ($newId) {
                     $entityMap[$name] = $newId;
@@ -436,19 +467,18 @@ class DocumentReviewController extends BaseController
             $conf    = (float) ($r['confidence'] ?? 0.85);
 
             $db->table('relationships')->insert([
-                'source_entity_id'  => $srcId,
-                'target_entity_id'  => $tgtId,
-                'relationship_type' => $relType,
-                'direction'         => $r['direction'] ?? 'directed',
-                'confidence'        => $conf,
-                'status'            => 'hypothesis',
-                'source_document_id'=> $id,
-                'source_reference'  => json_encode([
+                'source_entity_id'   => $srcId,
+                'target_entity_id'   => $tgtId,
+                'relationship_type'  => $relType,
+                'direction'          => $r['direction'] ?? 'directed',
+                'confidence'         => $conf,
+                'status'             => 'hypothesis',
+                'source_document_id' => $id,
+                'source_reference'   => json_encode([
                     'documento_id' => $id,
                     'documento'    => $doc['name'],
                     'trecho'       => $r['excerpt'] ?? '',
                 ], JSON_UNESCAPED_UNICODE),
-                'created_at'        => date('Y-m-d H:i:s'),
             ]);
             $createdRelsCount++;
         }
@@ -462,11 +492,18 @@ class DocumentReviewController extends BaseController
                ->update(['attributes' => json_encode($attributes, JSON_UNESCAPED_UNICODE)]);
         }
 
+        $message = "Salvas {$createdEntitiesCount} entidades e {$createdRelsCount} relações no Grafo com sucesso!";
+        if (!empty($skippedEntities)) {
+            $skippedNames = implode(', ', array_map(fn($s) => "'{$s['name']}' ({$s['type']})", $skippedEntities));
+            $message .= " Ignoradas por tipo inválido: {$skippedNames}. Corrija o tipo na próxima extração.";
+        }
+
         return $this->response->setJSON([
-            'success'       => true,
-            'message'       => "Salvas {$createdEntitiesCount} entidades e {$createdRelsCount} relações no Grafo com sucesso!",
-            'entitiesSaved' => $createdEntitiesCount,
-            'relsSaved'     => $createdRelsCount,
+            'success'         => true,
+            'message'         => $message,
+            'entitiesSaved'   => $createdEntitiesCount,
+            'relsSaved'       => $createdRelsCount,
+            'skippedEntities' => $skippedEntities,
         ]);
     }
 
