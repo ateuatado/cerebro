@@ -19,24 +19,45 @@ $typeConfig = [
 ];
 $tc = $typeConfig[$entity['type'] ?? 'person'] ?? $typeConfig['person'];
 
-// Rótulos amigáveis para atributos JSONB
-$attrLabels = [
-    'ocupacao'               => 'Ocupação / cargo',
-    'nascimento'             => 'Data de nascimento',
-    'naturalidade'           => 'Naturalidade',
-    'filiacao'               => 'Filiação',
-    'notas'                  => 'Notas',
-    'municipio'              => 'Município',
-    'estado'                 => 'Estado / UF',
-    'descricao'              => 'Descrição',
-    'data'                   => 'Data',
-    'tipo_evento'            => 'Tipo de evento',
-    'titulo'                 => 'Título',
-    'autor_responsavel'      => 'Autor / responsável',
-    'tipo_documento'         => 'Tipo de documento',
-    'instituicao_custodiadora'=> 'Instituição custodiadora',
-    'localizacao_arquivistica'=> 'Localização arquivística',
-    'data_acesso'            => 'Data de acesso',
+// Rótulos amigáveis para atributos JSONB (inclui vocabulário Spec 11)\r
+$attrLabels = [\r
+    // person\r
+    'ocupacao'               => 'Ocupação / Cargo',\r
+    'patente'                => 'Patente / Graduação',\r
+    'cargo'                  => 'Cargo ou Função',\r
+    'unidade'                => 'Unidade / Batalhão',\r
+    'faccao_politica'        => 'Facção Política',\r
+    'apelido'                => 'Apelido / Alcunha',\r
+    'naturalidade'           => 'Naturalidade',\r
+    'nacionalidade'          => 'Nacionalidade',\r
+    'data_nascimento'        => 'Data de Nascimento',\r
+    'nascimento'             => 'Data de Nascimento',\r
+    'filiacao'               => 'Filiação',\r
+    'notas'                  => 'Notas',\r
+    // location\r
+    'tipo_local'             => 'Tipo de Local',\r
+    'municipio'              => 'Município',\r
+    'estado'                 => 'Estado / UF',\r
+    'pais'                   => 'País',\r
+    'endereco'               => 'Endereço',\r
+    // event\r
+    'data_evento'            => 'Data do Evento',\r
+    'tipo_evento'            => 'Tipo de Evento',\r
+    'desfecho'               => 'Desfecho',\r
+    'local'                  => 'Local',\r
+    'vitimas'                => 'Vítimas',\r
+    // document\r
+    'descricao'              => 'Descrição',\r
+    'data'                   => 'Data',\r
+    'titulo'                 => 'Título',\r
+    'autor_responsavel'      => 'Autor / Responsável',\r
+    'tipo_documento'         => 'Tipo de Documento',\r
+    'instituicao_custodiadora'=> 'Instituição Custodiadora',\r
+    'localizacao_arquivistica'=> 'Localização Arquivística',\r
+    'data_acesso'            => 'Data de Acesso',\r
+    // internal\r
+    'conteudo_transcrito'    => 'Conteúdo Transcrito',\r
+    'formato'                => 'Formato',\r
 ];
 
 ob_start();
@@ -533,67 +554,68 @@ ob_start();
         </div>
     </div>
 
-    <!-- Modal Adicionar Atributo -->
-    <div class="modal fade" id="modalAddAttribute" tabindex="-1" aria-labelledby="modalAddAttributeLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <form action="<?= base_url('entidades/' . $entity['id'] . '/atributos') ?>" method="post" class="modal-content" style="background:var(--cbr-surface-1);color:var(--cbr-text);border:1px solid var(--cbr-border)">
-                <?= csrf_field() ?>
-                <div class="modal-header border-bottom border-secondary">
-                    <h5 class="modal-title" id="modalAddAttributeLabel">
-                        <i class="bi bi-plus-circle me-1"></i> Adicionar Atributo
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="attr_key_select" class="form-label text-subtle" style="font-size:.85rem">Nome do Atributo</label>
-                        <select name="attr_key" id="attr_key_select" class="form-select" style="background:var(--cbr-surface-2);color:var(--cbr-text);border-color:var(--cbr-border)">
-                            <option value="ocupacao">Ocupação / Cargo</option>
-                            <option value="nascimento">Data de Nascimento</option>
-                            <option value="naturalidade">Naturalidade</option>
-                            <option value="nacionalidade">Nacionalidade</option>
-                            <option value="filiacao">Filiação</option>
-                            <option value="status">Status (ex: falecido, ativo)</option>
-                            <option value="municipio">Município</option>
-                            <option value="estado">Estado / UF</option>
-                            <option value="alcunha">Alcunha / Apelido</option>
-                            <option value="notas">Notas / Observações</option>
-                            <option value="outro">Outro (Personalizado)...</option>
-                        </select>
-                    </div>
-                    <div class="mb-3" id="custom_attr_key_group" style="display:none">
-                        <label for="custom_attr_key" class="form-label text-subtle" style="font-size:.85rem">Nome Personalizado (ex: religiao, partido)</label>
-                        <input type="text" name="custom_attr_key" id="custom_attr_key" class="form-control" placeholder="digite_o_nome_do_atributo" style="background:var(--cbr-surface-2);color:var(--cbr-text);border-color:var(--cbr-border)">
-                    </div>
-                    <div class="mb-3">
-                        <label for="attr_value" class="form-label text-subtle" style="font-size:.85rem">Valor</label>
-                        <textarea name="attr_value" id="attr_value" class="form-control" rows="3" required placeholder="Digite o valor do atributo..." style="background:var(--cbr-surface-2);color:var(--cbr-text);border-color:var(--cbr-border)"></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer border-top border-secondary">
-                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary btn-sm">
-                        <i class="bi bi-check-lg me-1"></i> Salvar Atributo
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const select = document.getElementById('attr_key_select');
-        const customGroup = document.getElementById('custom_attr_key_group');
-        if (select && customGroup) {
-            select.addEventListener('change', function() {
-                if (this.value === 'outro') {
-                    customGroup.style.display = 'block';
-                } else {
-                    customGroup.style.display = 'none';
-                }
-            });
-        }
-    });
+    <!-- Modal Adicionar Atributo -->\r
+    <div class="modal fade" id="modalAddAttribute" tabindex="-1" aria-labelledby="modalAddAttributeLabel" aria-hidden="true" data-bs-backdrop="static">\r
+        <div class="modal-dialog modal-dialog-centered">\r
+            <form action="<?= base_url('entidades/' . $entity['id'] . '/atributos') ?>" method="post" class="modal-content cbr-modal-dark">\r
+                <?= csrf_field() ?>\r
+                <div class="modal-header">\r
+                    <h5 class="modal-title" id="modalAddAttributeLabel">\r
+                        <i class="bi bi-plus-circle me-1"></i> Adicionar Atributo\r
+                    </h5>\r
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>\r
+                </div>\r
+                <div class="modal-body">\r
+                    <div class="mb-3">\r
+                        <label for="attr_key_select" class="form-label cbr-modal-label">Nome do Atributo</label>\r
+                        <select name="attr_key" id="attr_key_select" class="form-select cbr-modal-input">\r
+                            <option value="" disabled selected>Selecione um atributo...</option>\r
+                            <?php\r
+                            // Carregar vocabulário controlado da Spec 11 (se disponível)\r
+                            $vocabModel = new \App\Models\EntityAttributeVocabularyModel();\r
+                            $vocabItems = $vocabModel->getByType($entity['type'] ?? 'person');\r
+                            if (!empty($vocabItems)):\r
+                                foreach ($vocabItems as $vi):\r
+                            ?>\r
+                            <option value="<?= esc($vi['key_name']) ?>"><?= esc($vi['label']) ?></option>\r
+                            <?php endforeach; endif; ?>\r
+                            <option value="outro">Outro (Personalizado)...</option>\r
+                        </select>\r
+                    </div>\r
+                    <div class="mb-3" id="custom_attr_key_group" style="display:none">\r
+                        <label for="custom_attr_key" class="form-label cbr-modal-label">Nome Personalizado <span class="text-subtle">(ex: religiao, partido)</span></label>\r
+                        <input type="text" name="custom_attr_key" id="custom_attr_key" class="form-control cbr-modal-input" placeholder="digite_o_nome_do_atributo">\r
+                    </div>\r
+                    <div class="mb-0">\r
+                        <label for="attr_value" class="form-label cbr-modal-label">Valor</label>\r
+                        <textarea name="attr_value" id="attr_value" class="form-control cbr-modal-input" rows="3" required placeholder="Digite o valor do atributo..."></textarea>\r
+                    </div>\r
+                </div>\r
+                <div class="modal-footer">\r
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>\r
+                    <button type="submit" class="btn btn-primary btn-sm">\r
+                        <i class="bi bi-check-lg me-1"></i> Salvar Atributo\r
+                    </button>\r
+                </div>\r
+            </form>\r
+        </div>\r
+    </div>\r
+\r
+    <script>\r
+    document.addEventListener('DOMContentLoaded', function() {\r
+        const select = document.getElementById('attr_key_select');\r
+        const customGroup = document.getElementById('custom_attr_key_group');\r
+        if (select && customGroup) {\r
+            select.addEventListener('change', function() {\r
+                if (this.value === 'outro') {\r
+                    customGroup.style.display = 'block';\r
+                    document.getElementById('custom_attr_key')?.focus();\r
+                } else {\r
+                    customGroup.style.display = 'none';\r
+                }\r
+            });\r
+        }\r
+    });\r
     </script>
 
 </div><!-- /.fade-in-up -->
