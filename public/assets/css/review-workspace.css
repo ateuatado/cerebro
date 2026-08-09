@@ -28,3 +28,25 @@
     box-shadow: 0 0 0 3px var(--cbr-primary-dim) !important;
     outline: none;
 }
+
+/* Spec 11: Contraste e legibilidade dos dropdowns do modal de curadoria */
+.entity-type-select option,
+.attr-key-select option {
+    background-color: #1e293b !important;
+    color: #f8fafc !important;
+    padding: 6px 10px;
+}
+
+.entity-type-select option:disabled,
+.attr-key-select option:disabled {
+    color: #94a3b8 !important;
+}
+
+.entity-curation-card {
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.entity-curation-card:hover {
+    border-color: var(--cbr-primary) !important;
+}
+
