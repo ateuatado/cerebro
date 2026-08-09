@@ -130,8 +130,10 @@ PROMPT;
      * Lê a imagem e retorna transcrição + entidades + relações.
      * Gemini lê a imagem, DeepSeek extrai entidades.
      * Se Gemini falhar, retorna vazio para fallback do controller.
+     *
+     * @param array $vocabulary Vocabulário controlado agrupado por tipo (Spec 11)
      */
-    public function extractFromImage(string $docTitle, string $imageBase64): array
+    public function extractFromImage(string $docTitle, string $imageBase64, array $vocabulary = []): array
     {
         try {
             $transcription = $this->transcribeImage($docTitle, $imageBase64);
@@ -145,10 +147,10 @@ PROMPT;
 
         try {
             $deepSeek = new DeepSeekService();
-            $result = $deepSeek->extractFromCropText($docTitle, $transcription);
+            $result = $deepSeek->extractFromCropText($docTitle, $transcription, $vocabulary);
             return [
                 'transcription' => $transcription,
-                'entities' => $result['entities'] ?? [],
+                'entities'      => $result['entities'] ?? [],
                 'relationships' => $result['relationships'] ?? [],
             ];
         } catch (\Throwable $e) {
@@ -157,29 +159,33 @@ PROMPT;
     }
 
     /**
-     * Extrai entidades e relacionamentos de um texto longo de documento histórico em UMA ÚNICA chamada via Gemini.
+     * Extrai entidades e relacionamentos de um texto longo de documento histórico em UMA Única chamada via Gemini.
+     *
+     * @param array $vocabulary Vocabulário controlado agrupado por tipo (Spec 11)
      */
-    public function extractKnowledgeFromText(string $docTitle, string $fullText): array
+    public function extractKnowledgeFromText(string $docTitle, string $fullText, array $vocabulary = []): array
     {
         if (empty($this->apiKey)) {
             throw new \RuntimeException('A chave GEMINI_API_KEY não está configurada no arquivo .env.');
         }
 
-        // Cortar texto em 50.000 caracteres como margem de segurança
         $safeText = mb_substr($fullText, 0, 50000);
+        $vocabSection = $this->buildVocabularyPromptSection($vocabulary);
 
         $prompt = <<<PROMPT
 Você é um historiador especialista em análise exaustiva e de alta densidade de jornais e documentos do Brasil das décadas de 1920 e 1930 (movimento operário, anarquismo, repressão policial, greves, edições de jornais).
 
 Sua missão é LER EXAUSTIVAMENTE o texto e EXTRAIR O MÁXIMO POSSÍVEL de entidades e relações em formato JSON estruturado.
 
-1. ENTIDADES:
-   - "person": Pessoas (ex: militantes, oradores, prisioneiros, policiais, redatores, colaboradores, operários, autoridades).
-   - "location": Locais (ex: cidades, ruas, praças, prisões, sedes de sindicatos, redações, auditórios).
-   - "event": Eventos (ex: greves, prisões, sessões de leitura, comícios, perseguições, edições, reuniões, conferências).
-
-2. RELAÇÕES entre essas entidades (snake_case):
-   - relationship_type: ex: publicou, editou, assinou, denunciou, preso_em, discursou_em, militante_de, participou_de, localizado_em, apoia, reprimiu.
+TIPOS VÁLIDOS — use EXCLUSIVAMENTE estes valores no campo "type":
+- "person": pessoas físicas identificáveis pelo nome
+- "location": lugares, cidades, ruas, estabelecimentos, unidades militares como lugar
+- "event": acontecimentos, greves, prisões, comícios, publicações, julgamentos
+- "document": fontes documentais primárias (jornais, ofícios, processos)
+NUNCA use tipos como "organization", "institution", "publication" ou outros não listados acima.
+{$vocabSection}
+RELAÇÕES entre essas entidades (snake_case):
+- relationship_type: ex: publicou, editou, assinou, denunciou, preso_em, discursou_em, militante_de, participou_de, localizado_em, apoia, reprimiu.
 
 Documento: {$docTitle}
 
@@ -189,7 +195,7 @@ Conteúdo:
 Estrutura JSON esperada:
 {
   "entities": [
-    {"name": "Nome da Entidade", "type": "person|location|event", "attributes": {"cargo": "...", "ocupacao": "..."}}
+    {"name": "Nome da Entidade", "type": "person|location|event|document", "attributes": {"cargo": "...", "ocupacao": "..."}}
   ],
   "relationships": [
     {
@@ -244,5 +250,27 @@ PROMPT;
             'entities'      => $extracted['entities'] ?? [],
             'relationships' => $extracted['relationships'] ?? [],
         ];
+    }
+
+    /**
+     * Monta a seção de vocabulário controlado para inserção no prompt da IA.
+     */
+    private function buildVocabularyPromptSection(array $vocabulary): string
+    {
+        if (empty($vocabulary)) {
+            return '';
+        }
+        $lines = ["\nVOCABULÁRIO DE ATRIBUTOS CONTROLADO — prefira estas chaves no campo \"attributes\":"];
+        foreach (['person', 'location', 'event', 'document'] as $type) {
+            if (!empty($vocabulary[$type])) {
+                $keys = array_map(
+                    fn($v) => "{$v['key']} ({$v['label']})",
+                    $vocabulary[$type]
+                );
+                $lines[] = "Para \"{$type}\": " . implode(', ', $keys);
+            }
+        }
+        $lines[] = "Somente introduza chave nova se nenhuma existente couber.\n";
+        return implode("\n", $lines);
     }
 }
