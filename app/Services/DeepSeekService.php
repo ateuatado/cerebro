@@ -155,28 +155,42 @@ PROMPT;
 
     /**
      * Transcreve e extrai entidades/relações a partir do texto bruto de um recorte de imagem manuscrita.
+     *
+     * @param string $docTitle
+     * @param string $rawOcrText
+     * @param array  $vocabulary Vocabulário controlado agrupado por tipo (Spec 11)
+     *               Formato: ['person' => [['key'=>'patente','label'=>'...'],...], ...]
      */
-    public function extractFromCropText(string $docTitle, string $rawOcrText): array
+    public function extractFromCropText(string $docTitle, string $rawOcrText, array $vocabulary = []): array
     {
         if (empty($this->apiKey)) {
             throw new \RuntimeException('A chave DEEPSEEK_API_KEY não está configurada no arquivo .env.');
         }
 
-        $systemPrompt = <<<PROMPT
-Você é um historiador e paleógrafo especialista em leitura de documentos manuscritos cursivos do Brasil das décadas de 1920 e 1930 (boletins de batalhões militares, registros de prisões, jornais e processos judiciais).
+        $vocabSection = $this->buildVocabularyPromptSection($vocabulary);
 
-O texto a seguir veio de um recorte de imagem de manuscrito em caligrafia cursiva antiga e pode conter ruídos ou abreviações da época (ex: "Ten." = Tenente, "Sgt." = Sargento, "Alferes", "2º Batalhão", "Mappa diario", "preso_em").
+        $systemPrompt = <<<PROMPT
+Você é um historiador e paleógrafo especialista em leitura de documentos manuscritos cursivos do Brasil das décadas de 1920 e 1930 (boletins de batalões militares, registros de prisões, jornais e processos judiciais).
+
+O texto a seguir veio de um recorte de imagem de manuscrito em caligrafia cursiva antiga e pode conter ruídos ou abreviações da época (ex: "Ten." = Tenente, "Sgt." = Sargento, "Alferes", "2º Batalão", "Mappa diario", "preso_em").
 
 Sua missão é:
 1. "transcription": Corrigir e restaurar o texto em português respeitando a ortografia/conteúdo original do manuscrito.
-2. "entities": Extrair todas as pessoas (com patentes/cargos em atributos), locais, eventos e organizações.
+2. "entities": Extrair todas as pessoas (com patentes/cargos em atributos), locais, eventos.
 3. "relationships": Extrair todas as conexões entre essas entidades (ex: lotado_em, preso_em, comandado_por, discursou_em).
 
+TIPOS VÁLIDOS — use EXCLUSIVAMENTE estes valores no campo "type":
+- "person": pessoas físicas identificáveis pelo nome
+- "location": lugares, cidades, ruas, estabelecimentos, unidades militares como lugar
+- "event": acontecimentos, greves, prisões, comícios, publicações, julgamentos
+- "document": fontes documentais primárias (jornais, ofícios, processos)
+NUNCA use tipos como "organization", "institution", "publication" ou outros não listados acima.
+{$vocabSection}
 Estrutura JSON esperada:
 {
   "transcription": "Texto manuscrito restaurado...",
   "entities": [
-    {"name": "Nome", "type": "person|location|event", "attributes": {"cargo": "..."}}
+    {"name": "Nome", "type": "person|location|event|document", "attributes": {"cargo": "..."}}
   ],
   "relationships": [
     {
@@ -273,26 +287,32 @@ PROMPT;
 
     /**
      * Analisa o texto de um documento histórico e extrai entidades e relações em formato estruturado.
+     *
+     * @param array $vocabulary Vocabulário controlado agrupado por tipo (Spec 11)
      */
-    public function extractKnowledge(string $docTitle, string $docText, array $extraAttributes = []): array
+    public function extractKnowledge(string $docTitle, string $docText, array $extraAttributes = [], array $vocabulary = []): array
     {
+        $vocabSection = $this->buildVocabularyPromptSection($vocabulary);
+
         $systemPrompt = <<<PROMPT
 Você é um historiador especialista em análise exaustiva e de alta densidade de jornais e documentos do Brasil das décadas de 1920 e 1930 (movimento operário, anarquismo, repressão policial, greves, edições de jornais).
 
-Sua missão é LER EXAUSTIVAMENTE o texto e EXTRAIR O MÁXIMO POSSÍVEL de entidades e relações. Seja extremamente detalhista — extraia dezenas de nomes, locais, jornais, organizações, sindicatos, prisioneiros e eventos mencionados no texto!
+Sua missão é LER EXAUSTIVAMENTE o texto e EXTRAIR O MÁXIMO POSSÍVEL de entidades e relações. Seja extremamente detalhista — extraia dezenas de nomes, locais, jornais, sindicatos, prisioneiros e eventos mencionados no texto!
 
-1. ENTIDADES:
-   - "person": Pessoas (ex: militantes, oradores, prisioneiros, policiais, redateis, colaboradores, operários, autoridades).
-   - "location": Locais (ex: cidades, ruas, praças, prisões, sedes de sindicatos, redações, auditórios).
-   - "event": Eventos (ex: greves, prisões, sessões de leitura, comícios, perseguições, edições, reuniões, conferências).
-
-2. RELAÇÕES entre essas entidades:
-   - relationship_type (snake_case): ex: publicou, editou, assinou, denunciou, preso_em, discursou_em, militante_de, participou_de, localizado_em, apoia, reprimiu.
-   - source_name: Nome exato da entidade origem.
-   - target_name: Nome exato da entidade destino.
-   - direction: "directed" ou "symmetric".
-   - confidence: Valor decimal entre 0.60 e 0.99.
-   - excerpt: Trecho original do texto (máx 150 caracteres).
+TIPOS VÁLIDOS — use EXCLUSIVAMENTE estes valores no campo "type":
+- "person": pessoas físicas identificáveis pelo nome
+- "location": lugares, cidades, ruas, estabelecimentos, unidades militares como lugar
+- "event": acontecimentos, greves, prisões, comícios, publicações, julgamentos
+- "document": fontes documentais primárias (jornais, ofícios, processos)
+NUNCA use tipos como "organization", "institution", "publication" ou outros não listados acima.
+{$vocabSection}
+RELAÇÕES entre essas entidades:
+- relationship_type (snake_case): ex: publicou, editou, assinou, denunciou, preso_em, discursou_em, militante_de, participou_de, localizado_em, apoia, reprimiu.
+- source_name: Nome exato da entidade origem.
+- target_name: Nome exato da entidade destino.
+- direction: "directed" ou "symmetric".
+- confidence: Valor decimal entre 0.60 e 0.99.
+- excerpt: Trecho original do texto (máx 150 caracteres).
 
 REGRAS OBRIGATÓRIAS:
 - Retorne EXCLUSIVAMENTE um objeto JSON válido.
@@ -300,7 +320,7 @@ REGRAS OBRIGATÓRIAS:
 - Estrutura JSON esperada:
 {
   "entities": [
-    {"name": "Nome da Entidade", "type": "person|location|event", "attributes": {"cargo": "...", "ocupacao": "..."}}
+    {"name": "Nome da Entidade", "type": "person|location|event|document", "attributes": {"cargo": "...", "ocupacao": "..."}}
   ],
   "relationships": [
     {
@@ -328,4 +348,35 @@ PROMPT;
 
         return $this->callApi($messages);
     }
-}
+
+    /**
+     * Monta a seção de vocabulário controlado para inserção no prompt da IA.
+     * Retorna string vazia se o vocabulário não for fornecido.
+     */
+    private function buildVocabularyPromptSection(array $vocabulary): string
+    {
+        if (empty($vocabulary)) {
+            return '';
+        }
+
+        $typeLabels = [
+            'person'   => 'person',
+            'location' => 'location',
+            'event'    => 'event',
+            'document' => 'document',
+        ];
+
+        $lines = ["\nVOCABULÁRIO DE ATRIBUTOS CONTROLADO — prefira estas chaves no campo \"attributes\":"];
+        foreach ($typeLabels as $type => $label) {
+            if (!empty($vocabulary[$type])) {
+                $keys = array_map(
+                    fn($v) => "{$v['key']} ({$v['label']})",
+                    $vocabulary[$type]
+                );
+                $lines[] = "Para \"{$type}\": " . implode(', ', $keys);
+            }
+        }
+        $lines[] = "Somente introduza chave nova se nenhuma existente couber.\n";
+        return implode("\n", $lines);
+    }
+
