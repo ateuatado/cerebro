@@ -29,6 +29,9 @@ $routes->group('entidades', ['filter' => 'auth'], function ($routes) {
 // Autocomplete JSON (AJAX, protegido)
 $routes->get('api/entidades/busca', 'EntityController::search', ['filter' => 'auth']);
 
+// Vocabulário controlado de atributos por tipo — Spec 11
+$routes->get('api/vocabulario-atributos', 'EntityController::getAttributeVocabulary', ['filter' => 'auth']);
+
 // ─── Relações ─────────────────────────────────────────────────────────
 $routes->group('relacoes', ['filter' => 'auth'], function ($routes) {
     $routes->get('/',                     'RelationshipController::index');

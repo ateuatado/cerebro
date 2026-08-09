@@ -8,6 +8,7 @@ use App\Models\LocationModel;
 use App\Models\EventModel;
 use App\Models\DocumentModel;
 use App\Models\RelationshipModel;
+use App\Models\EntityAttributeVocabularyModel;
 use App\Services\AuthService;
 
 /**
@@ -513,5 +514,18 @@ class EntityController extends BaseController
         }
 
         return $result;
+    }
+
+    /**
+     * GET /api/vocabulario-atributos — Vocabulário controlado de atributos por tipo (Spec 11)
+     * Retorna JSON agrupado por entity_type para uso nos dropdowns da modal de aprovação.
+     */
+    public function getAttributeVocabulary()
+    {
+        $model = new EntityAttributeVocabularyModel();
+        return $this->response->setJSON([
+            'success'    => true,
+            'vocabulary' => $model->getAllGroupedByType(),
+        ]);
     }
 }
