@@ -81,12 +81,18 @@ rediscussão:
 
 ## Convenção de atributos bibliográficos
 
+> **Spec 11 (2026-08-09):** O vocabulário controlado de atributos agora está registrado
+> na tabela `entity_attribute_vocabulary` do banco de dados e é consultado diretamente
+> pelo sistema. Esta seção é referência de leitura humana; a fonte da verdade do sistema
+> é a tabela. Novos atributos devem ser adicionados tanto aqui quanto na tabela.
+
 Para entidades do tipo `document`, o campo `attributes` (JSONB) deve seguir um
 vocabulário controlado de chaves. Esta é uma **convenção documental**, não uma
 constraint de banco — o objetivo é garantir consistência nos dados desde o
 primeiro documento cadastrado, viabilizando uma futura feature de geração de
 citação bibliográfica (ABNT e normas customizáveis, possivelmente via
 abordagem CSL) sem retrabalho de padronização retroativa.
+
 
 ### Chaves padrão
 
