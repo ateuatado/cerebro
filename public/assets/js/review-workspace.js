@@ -1,4 +1,4 @@
-/* Cerebro — review-workspace.js — Workspace Interativo de Transcrição Histórica (Spec 7 & Spec 8) */
+/* Cerebro — review-workspace.js — Workspace Interativo de Transcrição Histórica (Spec 7, 8 & 11) */
 /* Assets locais, sem inline, sem CDN — AGENTS.md */
 
 window.deleteDocumentFromWorkspace = (docId, docName) => {
@@ -27,7 +27,24 @@ window.deleteDocumentFromWorkspace = (docId, docName) => {
 		.catch(() => alert("Erro de comunicação com o servidor."));
 };
 
+/** Vocabulário controlado carregado da API (Spec 11) */
+let _vocabulary = {};
+
+function loadVocabulary() {
+	const base = (window.BASE_URL || "/").replace(/\/+$/, "") + "/";
+	return fetch(base + "api/vocabulario-atributos", {
+		headers: { "X-Requested-With": "XMLHttpRequest" },
+	})
+		.then((r) => r.json())
+		.then((data) => {
+			if (data.success) _vocabulary = data.vocabulary || {};
+		})
+		.catch(() => console.warn("Vocabulário não carregado."));
+}
+
 document.addEventListener("DOMContentLoaded", () => {
+	loadVocabulary();
+
 	const container = document.getElementById("workspace-container");
 	if (!container) return;
 
@@ -525,29 +542,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
 		if (entities.length === 0) {
 			modalEntitiesList.innerHTML =
-				'<div class="col-12 text-muted" style="font-size:.8125rem">Nenhuma entidade identificada especificamente neste trecho.</div>';
+				'<div class="text-muted" style="font-size:.8125rem">Nenhuma entidade identificada especificamente neste trecho.</div>';
 		} else {
 			entities.forEach((ent, idx) => {
-				const badgeClass =
-					ent.type === "person"
-						? "bg-primary"
-						: ent.type === "location"
-							? "bg-success"
-							: "bg-warning text-dark";
-				const col = document.createElement("div");
-				col.className = "col-md-6";
-				col.innerHTML = `
-                    <div class="p-2 border rounded" style="background:var(--cbr-surface-2)">
-                        <div class="form-check">
-                            <input class="form-check-input chk-region-entity" type="checkbox" id="chkEnt_${idx}" value="${idx}" checked>
-                            <label class="form-check-label fw-bold d-block" for="chkEnt_${idx}" style="font-size:.8125rem">
-                                <span class="badge ${badgeClass} me-1">${escHtml(ent.type)}</span>
-                                ${escHtml(ent.name)}
-                            </label>
-                        </div>
-                    </div>
-                `;
-				modalEntitiesList.appendChild(col);
+				modalEntitiesList.appendChild(buildEntityCard(ent, idx));
 			});
 		}
 
@@ -555,7 +553,7 @@ document.addEventListener("DOMContentLoaded", () => {
 			modalRelsList.innerHTML =
 				'<li class="list-group-item bg-transparent text-muted px-0">Nenhuma relação detectada entre entidades neste trecho.</li>';
 		} else {
-			rels.forEach((rel, idx) => {
+			rels.forEach((rel) => {
 				const li = document.createElement("li");
 				li.className =
 					"list-group-item bg-transparent text-subtle px-0 d-flex align-items-center justify-content-between";
@@ -572,18 +570,189 @@ document.addEventListener("DOMContentLoaded", () => {
 		}
 	}
 
-	// 7. Confirmação das Entidades Selecionadas no Grafo (Spec 8)
+	/** Constrói card editável de entidade (tipo + atributos) */
+	function buildEntityCard(ent, idx) {
+		const VALID_TYPES = ["person", "location", "event", "document"];
+		const typeBadge = { person: "bg-primary", location: "bg-success", event: "bg-warning text-dark", document: "bg-secondary" };
+		const currentType = VALID_TYPES.includes(ent.type) ? ent.type : "person";
+		const isInvalidType = !VALID_TYPES.includes(ent.type);
+
+		const card = document.createElement("div");
+		card.className = "p-2 border rounded entity-curation-card";
+		card.style.cssText = `background:var(--cbr-surface-2);${isInvalidType ? 'border-color:#f59e0b!important;' : ''}`;
+		card.dataset.idx = idx;
+
+		// Cabeçalho: checkbox + nome + dropdown de tipo
+		const header = document.createElement("div");
+		header.className = "d-flex align-items-center gap-2 mb-2";
+		header.innerHTML = `
+			<input class="form-check-input chk-region-entity mt-0" type="checkbox" id="chkEnt_${idx}" value="${idx}" checked>
+			<label class="fw-bold flex-grow-1" for="chkEnt_${idx}" style="font-size:.875rem;cursor:pointer">${escHtml(ent.name)}</label>
+			${isInvalidType ? `<span class="badge bg-warning text-dark" title="Tipo '${escHtml(ent.type)}' inválido — selecione um tipo válido">⚠ tipo inválido</span>` : ''}
+			<select class="form-select form-select-sm entity-type-select" style="width:auto;font-size:.8125rem;background:var(--cbr-surface-1);color:var(--cbr-text);border-color:var(--cbr-border)">
+				${VALID_TYPES.map(t => `<option value="${t}" ${t === currentType ? 'selected' : ''}>${t}</option>`).join('')}
+			</select>
+		`;
+		card.appendChild(header);
+
+		// Corpo: atributos editáveis
+		const attrsContainer = document.createElement("div");
+		attrsContainer.className = "entity-attrs-container ms-4";
+
+		const attrs = (ent.attributes && typeof ent.attributes === "object") ? ent.attributes : {};
+
+		// Renderiza atributos existentes
+		Object.entries(attrs).forEach(([key, value]) => {
+			attrsContainer.appendChild(buildAttrRow(currentType, key, String(value ?? '')));
+		});
+
+		// Botão Adicionar Atributo
+		const addBtn = document.createElement("button");
+		addBtn.type = "button";
+		addBtn.className = "btn btn-outline-secondary btn-sm mt-1";
+		addBtn.style.fontSize = ".75rem";
+		addBtn.innerHTML = '<i class="bi bi-plus-circle me-1"></i> Adicionar atributo';
+		addBtn.addEventListener("click", () => {
+			const typeSelect = card.querySelector(".entity-type-select");
+			attrsContainer.insertBefore(buildAttrRow(typeSelect.value, '', ''), addBtn);
+		});
+
+		// Atualiza chaves do vocabulário ao trocar tipo
+		const typeSelect = header.querySelector(".entity-type-select");
+		typeSelect.addEventListener("change", () => {
+			card.querySelectorAll(".attr-key-select").forEach(sel => {
+				updateKeyOptions(sel, typeSelect.value);
+			});
+		});
+
+		attrsContainer.appendChild(addBtn);
+		card.appendChild(attrsContainer);
+		return card;
+	}
+
+	/** Constrói uma linha de atributo (chave-select + valor-input + botão remover) */
+	function buildAttrRow(entityType, key, value) {
+		const row = document.createElement("div");
+		row.className = "d-flex align-items-center gap-1 mb-1 attr-row";
+
+		const keySelect = document.createElement("select");
+		keySelect.className = "form-select form-select-sm attr-key-select";
+		keySelect.style.cssText = "width:42%;font-size:.75rem;background:var(--cbr-surface-1);color:var(--cbr-text);border-color:var(--cbr-border)";
+		updateKeyOptions(keySelect, entityType, key);
+		keySelect.addEventListener("change", () => {
+			const customInput = row.querySelector(".attr-key-custom");
+			if (keySelect.value === "__new__") {
+				customInput.style.display = "";
+				customInput.focus();
+			} else {
+				customInput.style.display = "none";
+			}
+		});
+
+		const customInput = document.createElement("input");
+		customInput.type = "text";
+		customInput.className = "form-control form-control-sm attr-key-custom";
+		customInput.placeholder = "nova chave...";
+		customInput.style.cssText = `display:${key && !vocabHasKey(entityType, key) ? '' : 'none'};font-size:.75rem;width:35%;border-style:dashed;`;
+		if (key && !vocabHasKey(entityType, key)) customInput.value = key;
+
+		const valueInput = document.createElement("input");
+		valueInput.type = "text";
+		valueInput.className = "form-control form-control-sm attr-value-input";
+		valueInput.value = value;
+		valueInput.placeholder = "valor...";
+		valueInput.style.cssText = "font-size:.75rem;flex:1";
+
+		const removeBtn = document.createElement("button");
+		removeBtn.type = "button";
+		removeBtn.className = "btn btn-sm btn-outline-danger";
+		removeBtn.style.fontSize = ".75rem";
+		removeBtn.innerHTML = '<i class="bi bi-x"></i>';
+		removeBtn.addEventListener("click", () => row.remove());
+
+		row.appendChild(keySelect);
+		row.appendChild(customInput);
+		row.appendChild(valueInput);
+		row.appendChild(removeBtn);
+		return row;
+	}
+
+	/** Popula as options do select de chave baseado no tipo e no vocabulário */
+	function updateKeyOptions(selectEl, entityType, selectedKey = null) {
+		const vocabForType = (_vocabulary[entityType] || []);
+		const currentVal = selectedKey !== null ? selectedKey : selectEl.value;
+		selectEl.innerHTML = '';
+
+		// Placeholder vazio
+		const placeholder = document.createElement("option");
+		placeholder.value = "";
+		placeholder.text = "-- chave --";
+		placeholder.disabled = true;
+		if (!currentVal) placeholder.selected = true;
+		selectEl.appendChild(placeholder);
+
+		vocabForType.forEach(v => {
+			const opt = document.createElement("option");
+			opt.value = v.key;
+			opt.text = v.key + (v.label ? ` — ${v.label}` : '');
+			opt.title = v.desc || '';
+			if (v.key === currentVal) opt.selected = true;
+			selectEl.appendChild(opt);
+		});
+
+		// Opção para chave nova
+		const newOpt = document.createElement("option");
+		newOpt.value = "__new__";
+		newOpt.text = "+ nova chave...";
+		if (currentVal && !vocabHasKey(entityType, currentVal)) newOpt.selected = true;
+		selectEl.appendChild(newOpt);
+	}
+
+	function vocabHasKey(entityType, key) {
+		return (_vocabulary[entityType] || []).some(v => v.key === key);
+	}
+
+	// 7. Confirmação das Entidades Selecionadas no Grafo (Spec 8 + Spec 11)
 	if (btnConfirmEntities) {
 		btnConfirmEntities.addEventListener("click", () => {
 			if (!lastRegionResult) return;
 
+			// Coleta entidades dos cards editáveis
 			const selectedEntities = [];
-			document.querySelectorAll(".chk-region-entity:checked").forEach((chk) => {
-				const idx = parseInt(chk.value, 10);
-				if (lastRegionResult.entities[idx]) {
-					selectedEntities.push(lastRegionResult.entities[idx]);
-				}
+			document.querySelectorAll(".entity-curation-card").forEach((card) => {
+				const chk = card.querySelector(".chk-region-entity");
+				if (!chk || !chk.checked) return;
+
+				const idx = parseInt(card.dataset.idx, 10);
+				const originalEnt = lastRegionResult.entities[idx] || {};
+
+				const type = card.querySelector(".entity-type-select")?.value || "person";
+
+				// Coleta atributos das linhas editáveis
+				const attributes = {};
+				card.querySelectorAll(".attr-row").forEach((row) => {
+					const keySelect = row.querySelector(".attr-key-select");
+					const customKey = row.querySelector(".attr-key-custom");
+					const valueInput = row.querySelector(".attr-value-input");
+
+					let key = keySelect?.value || "";
+					if (key === "__new__") key = customKey?.value?.trim() || "";
+					const value = valueInput?.value?.trim() || "";
+
+					if (key && value) attributes[key] = value;
+				});
+
+				selectedEntities.push({
+					name: originalEnt.name,
+					type,
+					attributes,
+				});
 			});
+
+			if (selectedEntities.length === 0) {
+				alert("Selecione ao menos uma entidade para adicionar ao Grafo.");
+				return;
+			}
 
 			btnConfirmEntities.disabled = true;
 			btnConfirmEntities.innerHTML =

@@ -188,31 +188,41 @@ ob_start();
 
 </div>
 
-<!-- Modal de Pre-visualização & Aprovação de Entidades da Região (Spec 8) -->
+<!-- Modal de Pre-visualização & Aprovação de Entidades da Região (Spec 8 + Spec 11) -->
 <div class="modal fade" id="modalRegionEntities" tabindex="-1" aria-labelledby="modalRegionEntitiesLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content" style="background:var(--cbr-surface-1);color:var(--cbr-text);border:1px solid var(--cbr-border)">
             <div class="modal-header border-bottom" style="background:var(--cbr-surface-2)">
                 <h5 class="modal-title fs-6 fw-bold" id="modalRegionEntitiesLabel">
                     <i class="bi bi-diagram-3-fill text-success me-2"></i>
-                    Entidades & Grafo Encontrados na Região
+                    Curadoria de Entidades &amp; Grafo — Região Selecionada
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
             <div class="modal-body p-3">
-                
+
                 <!-- Transcrição da Região -->
                 <div class="mb-3">
                     <label class="form-label text-subtle fw-semibold" style="font-size:.8125rem">Transcrição HTR da Área Selecionada:</label>
                     <textarea id="modalRegionTranscript" class="form-control font-monospace" style="height:90px;font-size:.8125rem;background:var(--cbr-surface-2);color:var(--cbr-text);border-color:var(--cbr-border)"></textarea>
                 </div>
 
-                <!-- Entidades Identificadas -->
+                <!-- Legenda de tipos -->
+                <div class="d-flex gap-2 flex-wrap mb-3" style="font-size:.75rem">
+                    <span class="badge bg-primary">person</span>
+                    <span class="badge bg-success">location</span>
+                    <span class="badge bg-warning text-dark">event</span>
+                    <span class="badge bg-secondary">document</span>
+                    <span class="text-subtle ms-1">← Tipos válidos. Edite abaixo se a IA classificou errado.</span>
+                </div>
+
+                <!-- Entidades Identificadas — cards editáveis -->
                 <div class="mb-3">
                     <h6 class="fw-bold" style="font-size:.875rem;color:var(--cbr-primary)">
-                        <i class="bi bi-people-fill me-1"></i> Entidades Descobertas:
+                        <i class="bi bi-people-fill me-1"></i> Entidades Descobertas
+                        <span class="text-subtle fw-normal" style="font-size:.75rem">(revise tipo e atributos antes de confirmar)</span>:
                     </h6>
-                    <div id="modalRegionEntitiesList" class="row g-2">
+                    <div id="modalRegionEntitiesList" class="d-flex flex-column gap-2">
                         <!-- Preenchido via JS -->
                     </div>
                 </div>
