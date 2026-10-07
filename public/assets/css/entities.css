@@ -545,7 +545,8 @@
 
 /* ─── Modal dark theme (Cerebro) ────────────────────────────────────── */
 .cbr-modal-dark {
-    background: var(--cbr-surface-1);
+    background: var(--cbr-surface-1) !important;
+    background-color: var(--cbr-surface-1) !important;
     color: var(--cbr-text);
     border: 1px solid var(--cbr-border);
     border-radius: var(--cbr-radius);
@@ -601,18 +602,22 @@
 }
 
 .cbr-modal-input option {
-    background: var(--cbr-surface-1);
+    background: var(--cbr-surface-1) !important;
     color: var(--cbr-text);
     padding: 0.5rem;
 }
 
-/* Garantir z-index adequado para modais do Bootstrap no Cerebro */
-#modalAddAttribute {
-    z-index: 1060;
+/* Garantir z-index adequado para os modais do Cerebro */
+/* Sobrescreve variáveis Bootstrap e força valores via propriedade direta */
+.modal {
+    --bs-modal-zindex: 1060;
+    z-index: 1060 !important;
 }
-#modalAddAttribute + .modal-backdrop,
+
 .modal-backdrop {
-    z-index: 1055;
-    background-color: rgba(0,0,0,.65);
+    --bs-backdrop-zindex: 1050;
+    z-index: 1050 !important;
+    background-color: rgba(0,0,0,.7) !important;
+    backdrop-filter: blur(2px);
 }
 

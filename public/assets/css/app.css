@@ -14,6 +14,7 @@
 :root {
     --cbr-bg:           #0f1117;
     --cbr-surface:      #1a1d2e;
+    --cbr-surface-1:    #1a1d2e;
     --cbr-surface-2:    #242842;
     --cbr-border:       #2e3250;
     --cbr-text:         #e2e8f0;
@@ -58,6 +59,7 @@
 [data-theme="light"] {
     --cbr-bg:           #f1f3f9;
     --cbr-surface:      #ffffff;
+    --cbr-surface-1:    #ffffff;
     --cbr-surface-2:    #eef0f8;
     --cbr-border:       #d1d5e8;
     --cbr-text:         #1a1d2e;

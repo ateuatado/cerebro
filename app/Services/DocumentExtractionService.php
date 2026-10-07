@@ -209,10 +209,16 @@ class DocumentExtractionService
             if ($existing) {
                 $eId = (int)$existing['id'];
             } else {
+                // Injetar mencionado_em para rastreabilidade (todo doc extraído aponta para sua fonte)
+                $entAttrs = $ent['attributes'] ?? [];
+                if (!isset($entAttrs['mencionado_em'])) {
+                    $entAttrs['mencionado_em'] = $docTitle;
+                }
+
                 $eId = $this->entityModel->insert([
                     'name'         => $name,
                     'type'         => $type,
-                    'attributes'   => json_encode($ent['attributes'] ?? [], JSON_UNESCAPED_UNICODE),
+                    'attributes'   => json_encode($entAttrs, JSON_UNESCAPED_UNICODE),
                     'status'       => 'hypothesis',
                     'created_by'   => $userId,
                     'validated_by' => null,

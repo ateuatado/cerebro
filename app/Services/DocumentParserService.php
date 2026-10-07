@@ -28,10 +28,51 @@ use function getimagesize;
 class DocumentParserService
 {
     private EntityModel $entityModel;
+    private ?GeminiVisionService $geminiService = null;
 
     public function __construct()
     {
         $this->entityModel = new EntityModel();
+    }
+
+    /**
+     * Retorna instância do GeminiVisionService (lazy-load).
+     */
+    private function gemini(): GeminiVisionService
+    {
+        if ($this->geminiService === null) {
+            $this->geminiService = new GeminiVisionService();
+        }
+        return $this->geminiService;
+    }
+
+    /**
+     * Lê uma imagem usando Gemini Vision (multimodal).
+     * Retorna string vazia se o Gemini não estiver disponível ou falhar,
+     * para que o caller faça fallback para Tesseract.
+     */
+    public function performGeminiVisionOcr(string $filePath): string
+    {
+        if (!$this->gemini()->isAvailable()) {
+            return '';
+        }
+
+        try {
+            $imageData = @file_get_contents($filePath);
+            if (empty($imageData)) {
+                return '';
+            }
+
+            $mimeType = mime_content_type($filePath) ?: 'image/jpeg';
+            $base64   = base64_encode($imageData);
+            $dataUri  = "data:{$mimeType};base64,{$base64}";
+
+            $text = $this->gemini()->transcribeImage('Documento histórico', $dataUri);
+            return trim($text ?? '');
+        } catch (\Throwable $e) {
+            log_message('warning', '[GeminiVision OCR] Fallback para Tesseract: ' . $e->getMessage());
+            return '';
+        }
     }
 
     /**
@@ -57,9 +98,15 @@ class DocumentParserService
             return $this->parsePdf($filePath);
         }
 
-        // Imagens: OCR
+        // Imagens: Gemini Vision primeiro (leitura multimodal superior), Tesseract como fallback
         if (in_array($ext, ['jpg', 'jpeg', 'jfif', 'png', 'webp', 'bmp', 'tiff', 'tif'])) {
-            $ocrText = $this->performOcr($filePath, $ext);
+            $ocrText = $this->performGeminiVisionOcr($filePath);
+            if (empty(trim($ocrText))) {
+                log_message('info', '[OCR] Gemini indisponível ou falhou, usando Tesseract para: ' . basename($filePath));
+                $ocrText = $this->performOcr($filePath, $ext);
+            } else {
+                log_message('info', '[OCR] Gemini leu ' . strlen($ocrText) . ' caracteres de: ' . basename($filePath));
+            }
             return ['text' => $ocrText, 'pages' => 1];
         }
 

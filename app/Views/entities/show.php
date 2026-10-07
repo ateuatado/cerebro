@@ -19,45 +19,45 @@ $typeConfig = [
 ];
 $tc = $typeConfig[$entity['type'] ?? 'person'] ?? $typeConfig['person'];
 
-// Rótulos amigáveis para atributos JSONB (inclui vocabulário Spec 11)\r
-$attrLabels = [\r
-    // person\r
-    'ocupacao'               => 'Ocupação / Cargo',\r
-    'patente'                => 'Patente / Graduação',\r
-    'cargo'                  => 'Cargo ou Função',\r
-    'unidade'                => 'Unidade / Batalhão',\r
-    'faccao_politica'        => 'Facção Política',\r
-    'apelido'                => 'Apelido / Alcunha',\r
-    'naturalidade'           => 'Naturalidade',\r
-    'nacionalidade'          => 'Nacionalidade',\r
-    'data_nascimento'        => 'Data de Nascimento',\r
-    'nascimento'             => 'Data de Nascimento',\r
-    'filiacao'               => 'Filiação',\r
-    'notas'                  => 'Notas',\r
-    // location\r
-    'tipo_local'             => 'Tipo de Local',\r
-    'municipio'              => 'Município',\r
-    'estado'                 => 'Estado / UF',\r
-    'pais'                   => 'País',\r
-    'endereco'               => 'Endereço',\r
-    // event\r
-    'data_evento'            => 'Data do Evento',\r
-    'tipo_evento'            => 'Tipo de Evento',\r
-    'desfecho'               => 'Desfecho',\r
-    'local'                  => 'Local',\r
-    'vitimas'                => 'Vítimas',\r
-    // document\r
-    'descricao'              => 'Descrição',\r
-    'data'                   => 'Data',\r
-    'titulo'                 => 'Título',\r
-    'autor_responsavel'      => 'Autor / Responsável',\r
-    'tipo_documento'         => 'Tipo de Documento',\r
-    'instituicao_custodiadora'=> 'Instituição Custodiadora',\r
-    'localizacao_arquivistica'=> 'Localização Arquivística',\r
-    'data_acesso'            => 'Data de Acesso',\r
-    // internal\r
-    'conteudo_transcrito'    => 'Conteúdo Transcrito',\r
-    'formato'                => 'Formato',\r
+// Rótulos amigáveis para atributos JSONB (inclui vocabulário Spec 11)
+$attrLabels = [
+    // person
+    'ocupacao'               => 'Ocupação / Cargo',
+    'patente'                => 'Patente / Graduação',
+    'cargo'                  => 'Cargo ou Função',
+    'unidade'                => 'Unidade / Batalhão',
+    'faccao_politica'        => 'Facção Política',
+    'apelido'                => 'Apelido / Alcunha',
+    'naturalidade'           => 'Naturalidade',
+    'nacionalidade'          => 'Nacionalidade',
+    'data_nascimento'        => 'Data de Nascimento',
+    'nascimento'             => 'Data de Nascimento',
+    'filiacao'               => 'Filiação',
+    'notas'                  => 'Notas',
+    // location
+    'tipo_local'             => 'Tipo de Local',
+    'municipio'              => 'Município',
+    'estado'                 => 'Estado / UF',
+    'pais'                   => 'País',
+    'endereco'               => 'Endereço',
+    // event
+    'data_evento'            => 'Data do Evento',
+    'tipo_evento'            => 'Tipo de Evento',
+    'desfecho'               => 'Desfecho',
+    'local'                  => 'Local',
+    'vitimas'                => 'Vítimas',
+    // document
+    'descricao'              => 'Descrição',
+    'data'                   => 'Data',
+    'titulo'                 => 'Título',
+    'autor_responsavel'      => 'Autor / Responsável',
+    'tipo_documento'         => 'Tipo de Documento',
+    'instituicao_custodiadora'=> 'Instituição Custodiadora',
+    'localizacao_arquivistica'=> 'Localização Arquivística',
+    'data_acesso'            => 'Data de Acesso',
+    // internal
+    'conteudo_transcrito'    => 'Conteúdo Transcrito',
+    'formato'                => 'Formato',
 ];
 
 ob_start();
@@ -89,6 +89,26 @@ ob_start();
         </div>
 
         <div class="cbr-entity-detail-actions">
+            <!-- Editar metadados (nome e atributos) — disponível sempre -->
+            <button type="button"
+                    class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1"
+                    data-bs-toggle="modal"
+                    data-bs-target="#modalEditEntity"
+                    id="btn-edit-entity">
+                <i class="bi bi-pencil" aria-hidden="true"></i>
+                <span>Editar</span>
+            </button>
+
+            <!-- Mesclar com outra entidade -->
+            <button type="button"
+                    class="btn btn-outline-warning btn-sm d-flex align-items-center gap-1"
+                    data-bs-toggle="modal"
+                    data-bs-target="#modalMergeEntity"
+                    id="btn-merge-entity">
+                <i class="bi bi-union" aria-hidden="true"></i>
+                <span>Mesclar</span>
+            </button>
+
             <!-- Confirmar (coordenador, só hipóteses) -->
             <?php if ($role === 'coordenador' && $entity['status'] === 'hypothesis'): ?>
             <button class="btn-confirm"
@@ -279,9 +299,15 @@ ob_start();
                     <?php endif; ?>
                 <?php else: ?>
                     <div class="py-4 text-center">
-                        <i class="bi bi-exclamation-triangle" style="font-size:2.5rem;color:var(--cbr-hypothesis)"></i>
-                        <p class="mt-2" style="font-size:.875rem;color:var(--cbr-text-muted)">
-                            O arquivo físico original deste documento não está presente no servidor (somente os metadados).
+                        <i class="bi bi-link-45deg" style="font-size:2.5rem;color:var(--cbr-primary)"></i>
+                        <p class="mt-2" style="font-size:.875rem;color:var(--cbr-text)">
+                            Este registro de documento <strong>não possui arquivo físico próprio</strong>
+                            &mdash; foi gerado a partir da extração de outro documento primário.
+                        </p>
+                        <p style="font-size:.8125rem;color:var(--cbr-text-muted)">
+                            <i class="bi bi-arrow-down-circle me-1"></i>
+                            A fonte original e os trechos de comprovação estão listados abaixo em
+                            <strong>"Fonte Primária &amp; Trecho de Origem"</strong>.
                         </p>
                     </div>
                 <?php endif; ?>
@@ -554,71 +580,368 @@ ob_start();
         </div>
     </div>
 
-    <!-- Modal Adicionar Atributo -->\r
-    <div class="modal fade" id="modalAddAttribute" tabindex="-1" aria-labelledby="modalAddAttributeLabel" aria-hidden="true" data-bs-backdrop="static">\r
-        <div class="modal-dialog modal-dialog-centered">\r
-            <form action="<?= base_url('entidades/' . $entity['id'] . '/atributos') ?>" method="post" class="modal-content cbr-modal-dark">\r
-                <?= csrf_field() ?>\r
-                <div class="modal-header">\r
-                    <h5 class="modal-title" id="modalAddAttributeLabel">\r
-                        <i class="bi bi-plus-circle me-1"></i> Adicionar Atributo\r
-                    </h5>\r
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>\r
-                </div>\r
-                <div class="modal-body">\r
-                    <div class="mb-3">\r
-                        <label for="attr_key_select" class="form-label cbr-modal-label">Nome do Atributo</label>\r
-                        <select name="attr_key" id="attr_key_select" class="form-select cbr-modal-input">\r
-                            <option value="" disabled selected>Selecione um atributo...</option>\r
-                            <?php\r
-                            // Carregar vocabulário controlado da Spec 11 (se disponível)\r
-                            $vocabModel = new \App\Models\EntityAttributeVocabularyModel();\r
-                            $vocabItems = $vocabModel->getByType($entity['type'] ?? 'person');\r
-                            if (!empty($vocabItems)):\r
-                                foreach ($vocabItems as $vi):\r
-                            ?>\r
-                            <option value="<?= esc($vi['key_name']) ?>"><?= esc($vi['label']) ?></option>\r
-                            <?php endforeach; endif; ?>\r
-                            <option value="outro">Outro (Personalizado)...</option>\r
-                        </select>\r
-                    </div>\r
-                    <div class="mb-3" id="custom_attr_key_group" style="display:none">\r
-                        <label for="custom_attr_key" class="form-label cbr-modal-label">Nome Personalizado <span class="text-subtle">(ex: religiao, partido)</span></label>\r
-                        <input type="text" name="custom_attr_key" id="custom_attr_key" class="form-control cbr-modal-input" placeholder="digite_o_nome_do_atributo">\r
-                    </div>\r
-                    <div class="mb-0">\r
-                        <label for="attr_value" class="form-label cbr-modal-label">Valor</label>\r
-                        <textarea name="attr_value" id="attr_value" class="form-control cbr-modal-input" rows="3" required placeholder="Digite o valor do atributo..."></textarea>\r
-                    </div>\r
-                </div>\r
-                <div class="modal-footer">\r
-                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>\r
-                    <button type="submit" class="btn btn-primary btn-sm">\r
-                        <i class="bi bi-check-lg me-1"></i> Salvar Atributo\r
-                    </button>\r
-                </div>\r
-            </form>\r
-        </div>\r
-    </div>\r
-\r
-    <script>\r
-    document.addEventListener('DOMContentLoaded', function() {\r
-        const select = document.getElementById('attr_key_select');\r
-        const customGroup = document.getElementById('custom_attr_key_group');\r
-        if (select && customGroup) {\r
-            select.addEventListener('change', function() {\r
-                if (this.value === 'outro') {\r
-                    customGroup.style.display = 'block';\r
-                    document.getElementById('custom_attr_key')?.focus();\r
-                } else {\r
-                    customGroup.style.display = 'none';\r
-                }\r
-            });\r
-        }\r
-    });\r
+</div><!-- /.fade-in-up -->
+
+    <!-- Modal Adicionar Atributo -->
+    <div class="modal fade" id="modalAddAttribute" tabindex="-1" aria-labelledby="modalAddAttributeLabel" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
+            <form action="<?= base_url('entidades/' . $entity['id'] . '/atributos') ?>" method="post" class="modal-content cbr-modal-dark">
+                <?= csrf_field() ?>
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalAddAttributeLabel">
+                        <i class="bi bi-plus-circle me-1"></i> Adicionar Atributo
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="attr_key_select" class="form-label cbr-modal-label">Nome do Atributo</label>
+                        <select name="attr_key" id="attr_key_select" class="form-select cbr-modal-input">
+                            <option value="" disabled selected>Selecione um atributo...</option>
+                            <?php
+                            // Carregar vocabulário controlado da Spec 11 (se disponível)
+                            $vocabModel = new \App\Models\EntityAttributeVocabularyModel();
+                            $vocabItems = $vocabModel->getByType($entity['type'] ?? 'person');
+                            if (!empty($vocabItems)):
+                                foreach ($vocabItems as $vi):
+                            ?>
+                            <option value="<?= esc($vi['key_name']) ?>"><?= esc($vi['label']) ?></option>
+                            <?php endforeach; endif; ?>
+                            <option value="outro">Outro (Personalizado)...</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="custom_attr_key_group" style="display:none">
+                        <label for="custom_attr_key" class="form-label cbr-modal-label">Nome Personalizado <span class="text-subtle">(ex: religiao, partido)</span></label>
+                        <input type="text" name="custom_attr_key" id="custom_attr_key" class="form-control cbr-modal-input" placeholder="digite_o_nome_do_atributo">
+                    </div>
+                    <div class="mb-0">
+                        <label for="attr_value" class="form-label cbr-modal-label">Valor</label>
+                        <textarea name="attr_value" id="attr_value" class="form-control cbr-modal-input" rows="3" required placeholder="Digite o valor do atributo..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-check-lg me-1"></i> Salvar Atributo
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+    // Modal de Atributo (adicionar/remover)
+    document.addEventListener('DOMContentLoaded', function() {
+        const select = document.getElementById('attr_key_select');
+        const customGroup = document.getElementById('custom_attr_key_group');
+        if (select && customGroup) {
+            select.addEventListener('change', function() {
+                if (this.value === 'outro') {
+                    customGroup.style.display = 'block';
+                    document.getElementById('custom_attr_key')?.focus();
+                } else {
+                    customGroup.style.display = 'none';
+                }
+            });
+        }
+
+        // ─── Modal de Edição de Entidade ─────────────────────
+        const editModal = document.getElementById('modalEditEntity');
+        const attrContainer = document.getElementById('edit-attributes-container');
+        const btnAddAttr = document.getElementById('btn-add-attr-row');
+        const deletedContainer = document.getElementById('deleted-attrs-container');
+
+        // Focar o campo Nome quando o modal abrir e manter foco preso
+        if (editModal) {
+            editModal.addEventListener('shown.bs.modal', function () {
+                const nameInput = document.getElementById('edit_name');
+                if (nameInput) {
+                    setTimeout(() => {
+                        nameInput.focus();
+                        nameInput.select();
+                    }, 150);
+                }
+            });
+
+            // Se algo roubar o foco, traz de volta ao clicar em qualquer parte do modal
+            editModal.addEventListener('click', function (e) {
+                // Pequeno delay para deixar o clique processar
+                setTimeout(() => {
+                    const focused = document.activeElement;
+                    // Se o foco escapou do modal, traz de volta
+                    if (focused && !editModal.contains(focused) && focused !== document.body) {
+                        const nameInput = document.getElementById('edit_name');
+                        if (nameInput && document.contains(nameInput)) {
+                            nameInput.focus();
+                        }
+                    }
+                }, 50);
+            });
+
+            // Ao fechar, limpar foco do modal
+            editModal.addEventListener('hidden.bs.modal', function () {
+                if (document.activeElement) {
+                    document.activeElement.blur();
+                }
+            });
+        }
+
+        // Template de linha de atributo
+        function createAttrRow(key, value) {
+            const div = document.createElement('div');
+            div.className = 'input-group input-group-sm mb-1 attr-row';
+            div.innerHTML = `
+                <input type="text" name="attr_keys[]" class="form-control cbr-modal-input" style="max-width:35%"
+                       value="${escapeHtml(key || '')}" placeholder="chave">
+                <input type="text" name="attr_values[]" class="form-control cbr-modal-input"
+                       value="${escapeHtml(value || '')}" placeholder="valor">
+                <button type="button" class="btn btn-outline-danger btn-delete-attr" title="Remover">
+                    <i class="bi bi-x-lg"></i>
+                </button>`;
+            return div;
+        }
+
+        function escapeHtml(str) {
+            return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        // Adicionar nova linha de atributo
+        if (btnAddAttr) {
+            btnAddAttr.addEventListener('click', function() {
+                const noMsg = document.getElementById('no-attrs-msg');
+                if (noMsg) noMsg.remove();
+                attrContainer.appendChild(createAttrRow('', ''));
+            });
+        }
+
+        // Delegar eventos de remoção de atributo
+        if (attrContainer) {
+            attrContainer.addEventListener('click', function(e) {
+                const btn = e.target.closest('.btn-delete-attr');
+                if (!btn) return;
+
+                const row = btn.closest('.attr-row');
+                const keyInput = row.querySelector('input[name="attr_keys[]"]');
+                if (keyInput && keyInput.value.trim() !== '') {
+                    // Registrar chave para exclusão no backend
+                    const hidden = document.createElement('input');
+                    hidden.type = 'hidden';
+                    hidden.name = 'attr_deletes[]';
+                    hidden.value = keyInput.value.trim();
+                    deletedContainer.appendChild(hidden);
+                }
+                row.remove();
+
+                // Se não houver mais linhas, mostrar mensagem
+                if (attrContainer.querySelectorAll('.attr-row').length === 0) {
+                    const msg = document.createElement('p');
+                    msg.className = 'text-subtle';
+                    msg.id = 'no-attrs-msg';
+                    msg.style.fontSize = '.8125rem';
+                    msg.textContent = 'Nenhum atributo cadastrado.';
+                    attrContainer.appendChild(msg);
+                }
+            });
+        }
+
+        // ─── Modal de Mesclagem de Entidade ────────────────
+        const mergeSearch = document.getElementById('merge_target_search');
+        const mergeResults = document.getElementById('merge_search_results');
+        const mergeTargetId = document.getElementById('merge_target_id');
+        const mergeTargetName = document.getElementById('merge_target_name');
+        const mergeTargetSelected = document.getElementById('merge_target_selected');
+        const mergeConfirmBtn = document.getElementById('btn-confirm-merge');
+        let searchTimer = null;
+
+        if (mergeSearch) {
+            mergeSearch.addEventListener('input', function () {
+                const q = this.value.trim();
+                if (q.length < 2) {
+                    mergeResults.style.display = 'none';
+                    return;
+                }
+                clearTimeout(searchTimer);
+                searchTimer = setTimeout(() => {
+                    fetch('/api/entidades/busca?q=' + encodeURIComponent(q), {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        mergeResults.innerHTML = '';
+                        const filtered = (data || []).filter(e => e.id != <?= $entity['id'] ?> && e.type === '<?= $entity['type'] ?>');
+                        if (filtered.length === 0) {
+                            mergeResults.innerHTML = '<div class="list-group-item text-subtle" style="font-size:.8125rem">Nenhuma entidade do mesmo tipo encontrada.</div>';
+                        } else {
+                            filtered.forEach(e => {
+                                const item = document.createElement('button');
+                                item.type = 'button';
+                                item.className = 'list-group-item list-group-item-action';
+                                item.style.cssText = 'background:var(--cbr-surface-2);color:var(--cbr-text);border-color:var(--cbr-border);font-size:.8125rem;text-align:left';
+                                item.innerHTML = '<strong>' + e.name + '</strong> <span class="text-subtle">(#' + e.id + ')</span>';
+                                item.addEventListener('click', () => {
+                                    mergeTargetId.value = e.id;
+                                    mergeTargetName.textContent = e.name + ' (#' + e.id + ')';
+                                    mergeTargetSelected.style.display = 'block';
+                                    mergeSearch.value = e.name;
+                                    mergeResults.style.display = 'none';
+                                    mergeConfirmBtn.disabled = false;
+                                });
+                                mergeResults.appendChild(item);
+                            });
+                        }
+                        mergeResults.style.display = 'block';
+                    });
+                }, 250);
+            });
+
+            document.addEventListener('click', function(e) {
+                if (!mergeSearch.contains(e.target) && !mergeResults.contains(e.target)) {
+                    mergeResults.style.display = 'none';
+                }
+            });
+        }
+    });
     </script>
 
-</div><!-- /.fade-in-up -->
+    <!-- Modal Editar Entidade (posicionado no topo) -->
+    <div class="modal fade" id="modalEditEntity" tabindex="-1" aria-labelledby="modalEditEntityLabel" aria-hidden="true" data-bs-backdrop="static" style="z-index:1070">
+        <div class="modal-dialog modal-lg" style="margin-top:2rem;pointer-events:auto">
+            <form action="<?= base_url('entidades/' . $entity['id'] . '/editar') ?>" method="post" class="modal-content cbr-modal-dark">
+                <?= csrf_field() ?>
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalEditEntityLabel">
+                        <i class="bi bi-pencil me-1"></i> Editar Entidade
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Nome -->
+                    <div class="mb-3">
+                        <label for="edit_name" class="form-label cbr-modal-label">Nome da Entidade <span class="text-danger">*</span></label>
+                        <input type="text" name="name" id="edit_name" class="form-control cbr-modal-input" required
+                               value="<?= esc($entity['name']) ?>"
+                               placeholder="Ex: Benedicto de Andrade">
+                    </div>
+
+                    <!-- Tipo -->
+                    <div class="mb-3">
+                        <label for="edit_type" class="form-label cbr-modal-label">
+                            Tipo de Entidade
+                            <?php if ($entity['status'] === 'confirmed'): ?>
+                            <span class="text-subtle" style="font-size:.75rem">(bloqueado — entidade confirmada)</span>
+                            <?php endif; ?>
+                        </label>
+                        <select name="type" id="edit_type" class="form-select cbr-modal-input"
+                                <?= ($entity['status'] ?? '') === 'confirmed' ? 'disabled' : '' ?>>
+                            <?php foreach (['person'=>'Pessoa','location'=>'Local','event'=>'Evento','document'=>'Documento'] as $tVal => $tLabel): ?>
+                            <option value="<?= $tVal ?>" <?= ($entity['type'] ?? '') === $tVal ? 'selected' : '' ?>>
+                                <?= $tLabel ?>
+                            </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <?php if ($entity['status'] === 'confirmed'): ?>
+                        <input type="hidden" name="type" value="<?= esc($entity['type']) ?>">
+                        <?php endif; ?>
+                    </div>
+
+                    <!-- Atributos editáveis -->
+                    <div class="mb-2">
+                        <label class="form-label cbr-modal-label">
+                            Atributos
+                            <button type="button" class="btn btn-sm btn-outline-primary ms-2" id="btn-add-attr-row" style="font-size:.75rem">
+                                <i class="bi bi-plus-lg"></i> Adicionar
+                            </button>
+                        </label>
+                        <div id="edit-attributes-container" style="max-height:250px;overflow-y:auto">
+                            <?php
+                            $editAttrs = is_string($entity['attributes'] ?? '{}')
+                                ? (json_decode($entity['attributes'], true) ?? [])
+                                : ($entity['attributes'] ?? []);
+                            $hasAttrs = false;
+                            foreach ($editAttrs as $key => $value):
+                                if (is_array($value)) continue; // pula objetos aninhados
+                                $hasAttrs = true;
+                            ?>
+                            <div class="input-group input-group-sm mb-1 attr-row">
+                                <input type="text" name="attr_keys[]" class="form-control cbr-modal-input" style="max-width:35%"
+                                       value="<?= esc($key) ?>" placeholder="chave">
+                                <input type="text" name="attr_values[]" class="form-control cbr-modal-input"
+                                       value="<?= esc($value) ?>" placeholder="valor">
+                                <button type="button" class="btn btn-outline-danger btn-delete-attr" title="Remover">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                            <?php endforeach; ?>
+                            <?php if (!$hasAttrs): ?>
+                            <p class="text-subtle" style="font-size:.8125rem" id="no-attrs-msg">Nenhum atributo cadastrado.</p>
+                            <?php endif; ?>
+                        </div>
+                        <!-- Campos ocultos para remoção de atributos -->
+                        <div id="deleted-attrs-container"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-check-lg me-1"></i> Salvar Alterações
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Mesclar Entidade -->
+    <div class="modal fade" id="modalMergeEntity" tabindex="-1" aria-labelledby="modalMergeEntityLabel" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
+            <form action="<?= base_url('entidades/merge') ?>" method="post" class="modal-content cbr-modal-dark">
+                <?= csrf_field() ?>
+                <input type="hidden" name="source_id" value="<?= $entity['id'] ?>">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalMergeEntityLabel">
+                        <i class="bi bi-union me-1"></i> Mesclar Entidade
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3 p-3 rounded" style="background:var(--cbr-surface-2);border:1px solid var(--cbr-border)">
+                        <p class="mb-1" style="font-size:.8125rem;color:var(--cbr-text-muted)">Entidade a ser absorvida (será apagada):</p>
+                        <strong style="color:var(--cbr-danger)">
+                            <i class="bi <?= $tc['icon'] ?> me-1"></i><?= esc($entity['name']) ?>
+                        </strong>
+                        <span class="badge" style="background:<?= $tc['bg'] ?>;color:<?= $tc['color'] ?>"><?= $tc['label'] ?></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="merge_target_search" class="form-label cbr-modal-label">
+                            Buscar entidade de destino (manterá o nome e receberá as relações):
+                        </label>
+                        <input type="text" id="merge_target_search" class="form-control cbr-modal-input"
+                               placeholder="Digite o nome da entidade..." autocomplete="off">
+                        <div id="merge_search_results" class="list-group mt-1" style="max-height:200px;overflow-y:auto;display:none"></div>
+                        <input type="hidden" name="target_id" id="merge_target_id" value="">
+                        <div id="merge_target_selected" class="mt-2" style="display:none">
+                            <span class="text-subtle" style="font-size:.75rem">Destino selecionado:</span>
+                            <strong id="merge_target_name" class="ms-1" style="color:var(--cbr-confirmed)"></strong>
+                        </div>
+                    </div>
+
+                    <div class="p-2 rounded" style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3)">
+                        <p class="mb-0" style="font-size:.75rem;color:var(--cbr-hypothesis)">
+                            <i class="bi bi-info-circle me-1"></i>
+                            As relações da entidade atual serão transferidas para o destino.
+                            Atributos serão combinados. A entidade atual será apagada.
+                        </p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning btn-sm" id="btn-confirm-merge" disabled>
+                        <i class="bi bi-union me-1"></i> Mesclar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 
 <style>
 @media (max-width: 767.98px) {

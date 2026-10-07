@@ -108,6 +108,7 @@ abordagem CSL) sem retrabalho de padronização retroativa.
 |                              |        | `maco` — identificador do maço                     |
 | `data`                       | string | Data associada ao documento (YYYY-MM-DD ou YYYY-MM ou YYYY) |
 | `data_acesso`                | string | Data em que o documento foi consultado/acessado    |
+| `mencionado_em`              | string | **(Sistema)** Nome do documento-fonte de onde esta entidade foi extraída pela IA. Indica que é um documento mencionado no texto, não um upload direto. Ausente em documentos com arquivo físico próprio. |
 
 ### Exemplo
 

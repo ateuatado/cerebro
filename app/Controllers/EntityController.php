@@ -207,6 +207,162 @@ class EntityController extends BaseController
     }
 
     /**
+     * GET /entidades/{id}/editar — Retorna JSON com dados da entidade para o modal de edição
+     */
+    public function edit(int $id)
+    {
+        if (!$this->request->isAJAX()) {
+            return $this->response->setStatusCode(403);
+        }
+
+        $entity = $this->entityModel->find($id);
+        if (!$entity) {
+            return $this->response->setStatusCode(404)->setJSON(['error' => 'Entidade não encontrada.']);
+        }
+
+        $attrs = is_string($entity['attributes'])
+            ? (json_decode($entity['attributes'], true) ?? [])
+            : ($entity['attributes'] ?? []);
+
+        return $this->response->setJSON([
+            'success'    => true,
+            'entity'     => [
+                'id'         => $entity['id'],
+                'type'       => $entity['type'],
+                'name'       => $entity['name'],
+                'status'     => $entity['status'],
+                'attributes' => $attrs,
+            ],
+        ]);
+    }
+
+    /**
+     * POST /entidades/{id}/editar — Atualiza a entidade e registra correções para feedback da IA
+     */
+    public function update(int $id)
+    {
+        $entity = $this->entityModel->find($id);
+        if (!$entity) {
+            session()->setFlashdata('error', 'Entidade não encontrada.');
+            return redirect()->to('entidades');
+        }
+
+        $newName = trim((string) $this->request->getPost('name'));
+        $newType = $this->request->getPost('type');
+
+        if (empty($newName)) {
+            session()->setFlashdata('error', 'O nome da entidade é obrigatório.');
+            return redirect()->to('entidades/' . $id);
+        }
+
+        // Entidades confirmadas não podem mudar de tipo
+        if ($entity['status'] === 'confirmed') {
+            $newType = $entity['type'];
+        } else {
+            $allowedTypes = ['person', 'location', 'event', 'document'];
+            if (!in_array($newType, $allowedTypes)) {
+                session()->setFlashdata('error', 'Tipo de entidade inválido.');
+                return redirect()->to('entidades/' . $id);
+            }
+        }
+
+        // Atualizar atributos via o form (chave/valor)
+        $attrs = is_string($entity['attributes'])
+            ? (json_decode($entity['attributes'], true) ?? [])
+            : ($entity['attributes'] ?? []);
+
+        // Processa atributos enviados pelo modal de edição
+        $attrKeys   = $this->request->getPost('attr_keys')   ?? [];
+        $attrValues = $this->request->getPost('attr_values') ?? [];
+        $attrDeletes = $this->request->getPost('attr_deletes') ?? [];
+
+        // Remover atributos marcados para exclusão
+        foreach ($attrDeletes as $delKey) {
+            unset($attrs[$delKey]);
+        }
+
+        // Atualizar/inserir atributos
+        if (is_array($attrKeys) && is_array($attrValues)) {
+            $count = min(count($attrKeys), count($attrValues));
+            for ($i = 0; $i < $count; $i++) {
+                $k = trim((string) ($attrKeys[$i] ?? ''));
+                $v = trim((string) ($attrValues[$i] ?? ''));
+                if ($k !== '' && $v !== '') {
+                    $attrs[$k] = $v;
+                }
+            }
+        }
+
+        $updateData = [
+            'name'       => $newName,
+            'type'       => $newType,
+            'attributes' => json_encode($attrs, JSON_UNESCAPED_UNICODE),
+        ];
+
+        $this->entityModel->update($id, $updateData);
+
+        // Registrar correções para feedback da IA (base para Spec futura)
+        $this->logCorrections($entity, $newName, $newType, $attrs);
+
+        session()->setFlashdata('success', 'Entidade "' . $newName . '" atualizada com sucesso.');
+        return redirect()->to('entidades/' . $id);
+    }
+
+    /**
+     * Registra mudanças de nome, tipo ou atributos na tabela correction_log
+     * para futuro feedback de aprendizado da IA (human-in-the-loop).
+     */
+    private function logCorrections(array $oldEntity, string $newName, string $newType, array $newAttrs): void
+    {
+        $db = \Config\Database::connect();
+        $userId = $this->auth->currentUser()['user_id'] ?? null;
+        $oldAttrs = is_string($oldEntity['attributes'])
+            ? (json_decode($oldEntity['attributes'], true) ?? [])
+            : ($oldEntity['attributes'] ?? []);
+
+        // 1. Mudança de nome
+        if ($oldEntity['name'] !== $newName) {
+            $db->table('correction_log')->insert([
+                'entity_id' => $oldEntity['id'],
+                'field'     => 'name',
+                'old_value' => $oldEntity['name'],
+                'new_value' => $newName,
+                'corrected_by' => $userId,
+                'created_at'   => date('Y-m-d H:i:s'),
+            ]);
+        }
+
+        // 2. Mudança de tipo
+        if ($oldEntity['type'] !== $newType) {
+            $db->table('correction_log')->insert([
+                'entity_id' => $oldEntity['id'],
+                'field'     => 'type',
+                'old_value' => $oldEntity['type'],
+                'new_value' => $newType,
+                'corrected_by' => $userId,
+                'created_at'   => date('Y-m-d H:i:s'),
+            ]);
+        }
+
+        // 3. Mudanças de atributos (valores novos vs antigos)
+        foreach ($newAttrs as $key => $newVal) {
+            $oldVal = $oldAttrs[$key] ?? null;
+            $oldValStr = is_array($oldVal) ? json_encode($oldVal, JSON_UNESCAPED_UNICODE) : (string) $oldVal;
+            $newValStr = is_array($newVal) ? json_encode($newVal, JSON_UNESCAPED_UNICODE) : (string) $newVal;
+            if ($oldValStr !== $newValStr) {
+                $db->table('correction_log')->insert([
+                    'entity_id' => $oldEntity['id'],
+                    'field'     => 'attribute:' . $key,
+                    'old_value' => $oldValStr,
+                    'new_value' => $newValStr,
+                    'corrected_by' => $userId,
+                    'created_at'   => date('Y-m-d H:i:s'),
+                ]);
+            }
+        }
+    }
+
+    /**
      * POST /entidades/{id}/atributos — Adiciona ou atualiza um atributo JSONB
      */
     public function addAttribute(int $id)
@@ -377,6 +533,12 @@ class EntityController extends BaseController
             @unlink($filePath);
         }
 
+        // 1.5. Apagar relações onde este documento aparece como origem ou destino
+        $db->table('relationships')
+            ->where('source_entity_id', $id)
+            ->orWhere('target_entity_id', $id)
+            ->delete();
+
         // 2. Apagar todas as relações vinculadas a este documento como fonte primária
         $db->table('relationships')->where('source_document_id', $id)->delete();
 
@@ -428,6 +590,92 @@ class EntityController extends BaseController
             'success' => true,
             'message' => 'Toda a base de entidades, relações e arquivos de ingestão foi completamente zerada!'
         ]);
+    }
+
+    /**
+     * POST /entidades/merge — Mescla duas entidades do mesmo tipo em uma só.
+     * Transfere relações, mescla atributos, apaga a origem.
+     */
+    public function merge()
+    {
+        $sourceId = (int) $this->request->getPost('source_id');
+        $targetId = (int) $this->request->getPost('target_id');
+
+        $source = $this->entityModel->find($sourceId);
+        $target = $this->entityModel->find($targetId);
+
+        if (!$source || !$target) {
+            session()->setFlashdata('error', 'Uma das entidades não foi encontrada.');
+            return redirect()->to('entidades');
+        }
+
+        if ($source['type'] !== $target['type']) {
+            session()->setFlashdata('error', 'Só é possível mesclar entidades do mesmo tipo.');
+            return redirect()->to('entidades/' . $sourceId);
+        }
+
+        if ($sourceId === $targetId) {
+            session()->setFlashdata('error', 'Não é possível mesclar uma entidade com ela mesma.');
+            return redirect()->to('entidades/' . $sourceId);
+        }
+
+        $db = \Config\Database::connect();
+
+        // 1. Transferir relações: source → target
+        $db->table('relationships')
+            ->where('source_entity_id', $sourceId)
+            ->update(['source_entity_id' => $targetId]);
+
+        $db->table('relationships')
+            ->where('target_entity_id', $sourceId)
+            ->update(['target_entity_id' => $targetId]);
+
+        // Remover auto-relações que podem ter surgido
+        $db->table('relationships')
+            ->where('source_entity_id', $targetId)
+            ->where('target_entity_id', $targetId)
+            ->delete();
+
+        // 2. Mesclar atributos (target vence em conflito)
+        $sourceAttrs = is_string($source['attributes'])
+            ? (json_decode($source['attributes'], true) ?? [])
+            : ($source['attributes'] ?? []);
+        $targetAttrs = is_string($target['attributes'])
+            ? (json_decode($target['attributes'], true) ?? [])
+            : ($target['attributes'] ?? []);
+
+        $mergedAttrs = array_merge($sourceAttrs, $targetAttrs);
+
+        $this->entityModel->update($targetId, [
+            'attributes' => json_encode($mergedAttrs, JSON_UNESCAPED_UNICODE),
+        ]);
+
+        // 3. Se source for confirmed, garantir que target também seja
+        if ($source['status'] === 'confirmed' && $target['status'] !== 'confirmed') {
+            $this->entityModel->update($targetId, [
+                'status'       => 'confirmed',
+                'validated_by' => $this->auth->currentUser()['user_id'] ?? null,
+            ]);
+        }
+
+        // 4. Registrar correção no log
+        $db->table('correction_log')->insert([
+            'entity_id'   => $targetId,
+            'field'       => 'merged_from',
+            'old_value'   => '',
+            'new_value'   => $source['name'] . ' (#' . $sourceId . ')',
+            'corrected_by'=> $this->auth->currentUser()['user_id'] ?? null,
+            'created_at'  => date('Y-m-d H:i:s'),
+        ]);
+
+        // 5. Apagar entidade origem
+        $this->entityModel->delete($sourceId);
+
+        session()->setFlashdata('success',
+            '"' . $source['name'] . '" foi mesclada em "' . $target['name'] . '". ' .
+            'Relações transferidas, atributos combinados.'
+        );
+        return redirect()->to('entidades/' . $targetId);
     }
 
     /**

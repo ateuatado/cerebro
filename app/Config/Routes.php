@@ -21,6 +21,8 @@ $routes->group('entidades', ['filter' => 'auth'], function ($routes) {
     $routes->get('nova',                  'EntityController::create');
     $routes->post('nova',                 'EntityController::store');
     $routes->get('(:num)',                'EntityController::show/$1');
+    $routes->get('(:num)/editar',         'EntityController::edit/$1');
+    $routes->post('(:num)/editar',        'EntityController::update/$1');
     $routes->post('(:num)/confirmar',     'EntityController::confirm/$1');
     $routes->post('(:num)/atributos',         'EntityController::addAttribute/$1');
     $routes->post('(:num)/atributos/remover', 'EntityController::removeAttribute/$1');
@@ -91,3 +93,6 @@ $routes->post('api/documentos/pendentes/processar-todos',  'PendingExtractionCon
 $routes->post('entidades/(:num)/deletar',                  'EntityController::delete/$1', ['filter' => 'auth']);
 $routes->post('documentos/(:num)/deletar',                 'EntityController::deleteDocument/$1', ['filter' => 'auth']);
 $routes->post('api/limpar-banco-total',                    'EntityController::clearAllIngestions', ['filter' => 'auth']);
+
+// ─── Mesclagem de Entidades Duplicadas ───────────────────────────────
+$routes->post('entidades/merge',                           'EntityController::merge', ['filter' => 'auth']);
