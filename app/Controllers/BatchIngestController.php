@@ -119,12 +119,20 @@ class BatchIngestController extends BaseController
 
             // 3. ESTÁGIO 2: Tentar disparar a extração tokenizada por IA em blocos
             if (empty(trim($content))) {
+                $mergedAttrs = array_merge($attributes, [
+                    'extraction_status' => 'pending_ocr',
+                    'extraction_error'  => 'Nenhum texto foi produzido pelo OCR. Verifique Gemini/Tesseract e reprocesse o documento.',
+                ]);
+                $this->entityModel->update($documentId, [
+                    'attributes' => json_encode($mergedAttrs, JSON_UNESCAPED_UNICODE),
+                ]);
+
                 return $this->response->setJSON([
                     'success'    => true,
                     'fileName'   => $fileName,
                     'documentId' => $documentId,
                     'status'     => 'pending',
-                    'message'    => 'Documento salvo no repositório. Disponível no Workspace Interativo para transcrição visual.',
+                    'message'    => 'Documento salvo, mas o OCR não produziu texto. Verifique os serviços de OCR/IA e reprocese.',
                 ]);
             }
 
@@ -141,13 +149,16 @@ class BatchIngestController extends BaseController
                     'status'            => 'completed',
                 ]);
             } catch (\Throwable $aiException) {
-                // Se a IA oscilar, o documento permanece salvo com status 'error' para reprocessamento na tela de pendentes
+                log_message('error', '[Upload em lote] Extração pendente para ' . $fileName . ': ' . $aiException->getMessage());
+
+                // O documento permanece salvo para reprocessamento, mas não
+                // deve ser apresentado ao usuário como concluído com zero.
                 return $this->response->setJSON([
                     'success'    => true,
                     'fileName'   => $fileName,
                     'documentId' => $documentId,
                     'status'     => 'pending',
-                    'message'    => 'Documento salvo no repositório. Extração pendente: ' . $aiException->getMessage(),
+                    'message'    => 'Documento salvo. A extração ficou pendente e poderá ser reprocessada.',
                 ]);
             }
 

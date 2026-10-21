@@ -10,6 +10,7 @@ use App\Models\DocumentModel;
 use App\Models\RelationshipModel;
 use App\Models\EntityAttributeVocabularyModel;
 use App\Services\AuthService;
+use App\Services\EntityIdentityService;
 
 /**
  * EntityController — CRUD de entidades do grafo e exclusão em cascata de documentos e rastro
@@ -19,12 +20,14 @@ class EntityController extends BaseController
     private EntityModel       $entityModel;
     private RelationshipModel $relModel;
     private AuthService       $auth;
+    private EntityIdentityService $identityService;
 
     public function __construct()
     {
         $this->entityModel = new EntityModel();
         $this->relModel    = new RelationshipModel();
         $this->auth        = new AuthService();
+        $this->identityService = new EntityIdentityService();
     }
 
     /**
@@ -72,6 +75,12 @@ class EntityController extends BaseController
         if (!in_array($type, $allowedTypes)) {
             session()->setFlashdata('error', 'Tipo de entidade inválido.');
             return redirect()->to('entidades/nova');
+        }
+
+        $existing = $this->identityService->findExisting($type, (string) $name);
+        if ($existing) {
+            session()->setFlashdata('info', 'Essa entidade já existe no grafo; o cadastro duplicado foi evitado.');
+            return redirect()->to('entidades/' . $existing['id']);
         }
 
         // Flatten de atributos aninhados (localizacao_arquivistica)

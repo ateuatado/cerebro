@@ -182,7 +182,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     };
                 }
 
-                if (response.ok && data.success) {
+                if (response.ok && data.success && data.status === 'pending') {
+                    item.status = 'pending';
+                    item.message = data.message || 'Documento salvo e aguardando reprocessamento.';
+                    updateItemStatus(item.id, 'pending', '⏳ ' + item.message, '<span class="badge-hypothesis"><i class="bi bi-hourglass-split me-1"></i>Pendente</span>');
+                } else if (response.ok && data.success) {
                     item.status = 'done';
                     item.entities = data.entitiesExtracted || 0;
                     item.rels = data.relsExtracted || 0;

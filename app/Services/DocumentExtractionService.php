@@ -18,6 +18,7 @@ class DocumentExtractionService
     private RelationshipModel $relationshipModel;
     private DeepSeekService   $deepSeekService;
     private GeminiVisionService $geminiService;
+    private EntityIdentityService $identityService;
 
     public function __construct()
     {
@@ -25,6 +26,7 @@ class DocumentExtractionService
         $this->relationshipModel = new RelationshipModel();
         $this->deepSeekService   = new DeepSeekService();
         $this->geminiService     = new GeminiVisionService();
+        $this->identityService   = new EntityIdentityService();
     }
 
     /**
@@ -198,13 +200,8 @@ class DocumentExtractionService
                 $type = 'person';
             }
 
-            $key = mb_strtolower($name);
-
-            $existing = $db->table('entities')
-                ->where('type', $type)
-                ->where('LOWER(name)', $key)
-                ->get()
-                ->getRowArray();
+            $key = $this->identityService->normalize($name);
+            $existing = $this->identityService->findExisting($type, $name);
 
             if ($existing) {
                 $eId = (int)$existing['id'];
@@ -234,8 +231,8 @@ class DocumentExtractionService
         // B) Cadastrar Relações no Grafo
         $newRelsCount = 0;
         foreach ($relationships as $rel) {
-            $sName = mb_strtolower(trim($rel['source_name'] ?? ''));
-            $tName = mb_strtolower(trim($rel['target_name'] ?? ''));
+            $sName = $this->identityService->normalize((string) ($rel['source_name'] ?? ''));
+            $tName = $this->identityService->normalize((string) ($rel['target_name'] ?? ''));
             $rType = strtolower(trim($rel['relationship_type'] ?? 'associado_a'));
             $rDir  = strtolower(trim($rel['direction'] ?? 'directed'));
             $conf  = floatval($rel['confidence'] ?? 0.85);

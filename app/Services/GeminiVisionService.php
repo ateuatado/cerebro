@@ -59,7 +59,8 @@ class GeminiVisionService
 
         $mimeType = 'image/jpeg';
         $base64Data = $imageBase64;
-        if (preg_match('/^data:image\/(\w+);base64,/', $imageBase64, $matches)) {
+        if (preg_match('/^data:(image\/[\w.+-]+);base64,/', $imageBase64, $matches)) {
+            $mimeType = $matches[1];
             $base64Data = substr($imageBase64, strpos($imageBase64, ',') + 1);
         }
 

@@ -260,6 +260,7 @@ PROMPT;
 
         $allEntities     = [];
         $allRelationships = [];
+        $errors           = [];
 
         foreach ($chunks as $index => $chunkText) {
             $chunkTitle = "{$docTitle} (Parte " . ($index + 1) . " de " . \count($chunks) . ")";
@@ -287,8 +288,17 @@ PROMPT;
                 }
 
             } catch (\Exception $e) {
-                // Log da falha no bloco e continua nos próximos
+                $errors[] = $e->getMessage();
+                log_message('error', '[DeepSeek] Falha no bloco ' . ($index + 1) . ': ' . $e->getMessage());
             }
+        }
+
+        // Não transformar uma falha completa da API em uma extração vazia.
+        // O documento ficará pendente e poderá ser reprocessado depois.
+        if (empty($allEntities) && empty($allRelationships) && ! empty($errors)) {
+            throw new \RuntimeException(
+                'A extração por IA falhou em todos os blocos. Último erro: ' . mb_substr((string) end($errors), 0, 300)
+            );
         }
 
         return [

@@ -237,7 +237,9 @@ class ExtractionController extends BaseController
 
             $filePath = $attrs['caminho_arquivo'] ?? '';
             $ext      = strtolower($attrs['formato'] ?? pathinfo($doc['name'], PATHINFO_EXTENSION));
-            $docText  = $attrs['descricao'] ?? '';
+            // Preferir a transcrição integral. A descrição é apenas um
+            // resumo de até 1.000/4.000 caracteres e não deve alimentar a IA.
+            $docText  = $attrs['conteudo_transcrito'] ?? $attrs['descricao'] ?? '';
 
             // Se o arquivo físico existe, executa OCR
             if (!empty($filePath) && file_exists($filePath)) {
@@ -246,6 +248,8 @@ class ExtractionController extends BaseController
                     if (!empty(trim($parseResult['text']))) {
                         $docText = $parseResult['text'];
                         $attrs['descricao'] = mb_substr($docText, 0, 4000);
+                        $attrs['conteudo_transcrito'] = $docText;
+                        $attrs['extraction_status'] = 'processing';
                         $this->entityModel->update($doc['id'], [
                             'attributes' => json_encode($attrs, JSON_UNESCAPED_UNICODE)
                         ]);
@@ -314,7 +318,22 @@ class ExtractionController extends BaseController
                 $totalRels     += $relsCount;
                 $reprocessedCount++;
 
-            } catch (\Exception $e) {}
+                $attrs['extraction_status']  = 'completed';
+                $attrs['extracted_at']       = date('Y-m-d H:i:s');
+                $attrs['entities_extracted'] = count($entities);
+                $attrs['rels_extracted']     = $relsCount;
+                $this->entityModel->update($doc['id'], [
+                    'attributes' => json_encode($attrs, JSON_UNESCAPED_UNICODE)
+                ]);
+
+            } catch (\Throwable $e) {
+                $attrs['extraction_status'] = 'error';
+                $attrs['extraction_error'] = 'Falha na reextração: ' . mb_substr($e->getMessage(), 0, 500);
+                $this->entityModel->update($doc['id'], [
+                    'attributes' => json_encode($attrs, JSON_UNESCAPED_UNICODE)
+                ]);
+                log_message('error', '[Reprocessamento] Documento ' . $doc['id'] . ': ' . $e->getMessage());
+            }
 
             usleep(200000);
         }

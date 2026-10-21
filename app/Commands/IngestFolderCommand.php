@@ -12,6 +12,7 @@ use App\Models\EventModel;
 use App\Models\RelationshipModel;
 use App\Services\DeepSeekService;
 use App\Services\DocumentParserService;
+use App\Services\EntityIdentityService;
 
 /**
  * IngestFolderCommand — Comando CLI para varrer uma pasta e processar documentos de múltiplos formatos (TXT, PDF, JPG, PNG, etc.) em lote.
@@ -71,6 +72,7 @@ class IngestFolderCommand extends BaseCommand
 
         $deepSeek    = new DeepSeekService();
         $docParser   = new DocumentParserService();
+        $identity    = new EntityIdentityService();
         $docModel    = new DocumentModel();
         $entityModel = new EntityModel();
         $relModel    = new RelationshipModel();
@@ -102,7 +104,7 @@ class IngestFolderCommand extends BaseCommand
                 }
 
                 // Verificar se o documento já foi cadastrado
-                $existingDoc = $entityModel->where('name', $fileName)->where('type', 'document')->first();
+                $existingDoc = $identity->findExisting('document', $fileName);
                 if ($existingDoc) {
                     $documentId = $existingDoc['id'];
                     $currentAttrs = is_string($existingDoc['attributes']) ? (json_decode($existingDoc['attributes'], true) ?? []) : ($existingDoc['attributes'] ?? []);
@@ -144,7 +146,7 @@ class IngestFolderCommand extends BaseCommand
                     $eType = $eData['type'] ?? 'person';
                     if (empty($eName)) continue;
 
-                    $existingE = $entityModel->where('name', $eName)->first();
+                    $existingE = $identity->findExisting($eType, $eName);
                     if ($existingE) {
                         $entityNameMap[$eName] = $existingE['id'];
                         continue;
