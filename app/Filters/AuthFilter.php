@@ -17,6 +17,13 @@ class AuthFilter implements FilterInterface
             session()->setFlashdata('error', 'Faça login para acessar esta página.');
             return redirect()->to('/login');
         }
+
+        $path = trim($request->getUri()->getPath(), '/');
+        $mustChange = ! in_array(session('must_change_password'), [false, 'f', 'false', 0, '0', null], true);
+        if ($mustChange && $path !== 'senha' && $path !== 'logout') {
+            session()->setFlashdata('info', 'Por segurança, defina uma nova senha antes de continuar.');
+            return redirect()->to('/senha');
+        }
     }
 
     /**

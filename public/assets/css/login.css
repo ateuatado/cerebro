@@ -136,6 +136,7 @@
 
 /* Input group com ícone (senha) */
 .login-pass-wrap { position: relative; }
+.login-password-input { padding-right: 3rem; }
 .login-pass-toggle {
     position: absolute;
     right: 0.875rem;

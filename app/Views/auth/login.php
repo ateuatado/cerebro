@@ -84,7 +84,7 @@
                         type="password"
                         name="password"
                         id="password"
-                        class="form-control"
+                        class="form-control login-password-input"
                         required
                         autocomplete="current-password"
                         placeholder="••••••••"
@@ -107,6 +107,10 @@
             </button>
         </form>
 
+        <div class="text-center mt-3">
+            <a href="<?= base_url('senha/esqueci') ?>">Esqueci minha senha</a>
+        </div>
+
         <div class="login-footer">
             Acesso restrito — ferramenta de pesquisa histórica
         </div>
@@ -117,21 +121,6 @@
 <!-- Scripts -->
 <script src="<?= base_url('assets/vendor/bootstrap/js/bootstrap.bundle.min.js') ?>"></script>
 <script src="<?= base_url('assets/js/app.js') ?>"></script>
-<script>
-// Toggle mostrar/ocultar senha
-document.getElementById('pass-toggle').addEventListener('click', function() {
-    var pwd  = document.getElementById('password');
-    var icon = this.querySelector('i');
-    if (pwd.type === 'password') {
-        pwd.type = 'text';
-        icon.className = 'bi bi-eye-slash';
-        this.setAttribute('aria-label', 'Ocultar senha');
-    } else {
-        pwd.type = 'password';
-        icon.className = 'bi bi-eye';
-        this.setAttribute('aria-label', 'Mostrar senha');
-    }
-});
-</script>
+<script src="<?= base_url('assets/js/login.js') ?>"></script>
 </body>
 </html>

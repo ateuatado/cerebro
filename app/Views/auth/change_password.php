@@ -1,0 +1,1 @@
+<?= view('layout/base', ['title' => 'Trocar senha', 'breadcrumbs' => [['label' => 'Trocar senha', 'url' => base_url('senha')]], 'content' => view('auth/_password_form', ['action' => base_url('senha'), 'current' => true])]) ?>

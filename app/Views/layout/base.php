@@ -138,6 +138,20 @@ $pendingCount = 0; // TODO: injetar via controller
                 Visualizar grafo
             </a>
 
+            <div class="cbr-nav-section">Conta</div>
+
+            <a href="<?= base_url('senha') ?>" class="cbr-nav-link" id="nav-password">
+                <i class="bi bi-key" aria-hidden="true"></i>
+                Trocar senha
+            </a>
+
+            <?php if ($role === 'coordenador'): ?>
+            <a href="<?= base_url('usuarios') ?>" class="cbr-nav-link" id="nav-users">
+                <i class="bi bi-person-gear" aria-hidden="true"></i>
+                Usuários
+            </a>
+            <?php endif; ?>
+
         </nav>
 
         <div class="cbr-sidebar-footer">

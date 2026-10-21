@@ -20,6 +20,7 @@ class UserModel extends Model
         'password_hash',
         'role',
         'active',
+        'must_change_password',
     ];
 
     /**
@@ -27,7 +28,7 @@ class UserModel extends Model
      */
     public function findByEmail(string $email): ?array
     {
-        $result = $this->where('email', $email)->first();
+        $result = $this->where('email', mb_strtolower(trim($email)))->first();
         return $result ?: null;
     }
 
@@ -45,7 +46,7 @@ class UserModel extends Model
     public function isActive(int $id): bool
     {
         $user = $this->find($id);
-        return $user && !empty($user['active']);
+        return $user !== null && ! in_array($user['active'] ?? false, [false, 'f', 'false', 0, '0'], true);
     }
 
     /**

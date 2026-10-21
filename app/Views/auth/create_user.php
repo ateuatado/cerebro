@@ -1,0 +1,1 @@
+<?= view('layout/base', ['title' => 'Novo usuário', 'breadcrumbs' => [['label' => 'Usuários', 'url' => base_url('usuarios')], ['label' => 'Novo usuário', 'url' => base_url('usuarios/novo')]], 'content' => view('auth/_create_user_form')]) ?>

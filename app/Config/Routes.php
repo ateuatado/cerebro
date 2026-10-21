@@ -8,6 +8,15 @@ use CodeIgniter\Router\RouteCollection;
 $routes->get('login',  'AuthController::loginForm');
 $routes->post('login', 'AuthController::loginAction');
 $routes->get('logout', 'AuthController::logout');
+$routes->get('senha/esqueci',  'AuthController::forgotForm');
+$routes->post('senha/esqueci', 'AuthController::forgotAction');
+$routes->get('senha/redefinir/(:segment)',  'AuthController::resetForm/$1');
+$routes->post('senha/redefinir/(:segment)', 'AuthController::resetAction/$1');
+$routes->get('senha',  'AuthController::changePasswordForm', ['filter' => 'auth']);
+$routes->post('senha', 'AuthController::changePasswordAction', ['filter' => 'auth']);
+$routes->get('usuarios', 'AuthController::users', ['filter' => 'auth']);
+$routes->get('usuarios/novo', 'AuthController::createUserForm', ['filter' => 'auth']);
+$routes->post('usuarios/novo', 'AuthController::createUserAction', ['filter' => 'auth']);
 
 // Scaffolding de teste
 $routes->post('teste-autorizacao-coordenador', 'AuthController::testeAutorizacao', ['filter' => 'auth']);

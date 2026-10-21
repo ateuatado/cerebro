@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Controllers\BaseController;
 use App\Services\AuthService;
+use App\Models\UserModel;
 
 class AuthController extends BaseController
 {
@@ -33,8 +34,8 @@ class AuthController extends BaseController
      */
     public function loginAction()
     {
-        $email    = $this->request->getPost('email');
-        $password = $this->request->getPost('password');
+        $email    = (string) $this->request->getPost('email');
+        $password = (string) $this->request->getPost('password');
 
         if ($this->auth->login($email, $password)) {
             return redirect()->to('/');
@@ -42,6 +43,82 @@ class AuthController extends BaseController
 
         session()->setFlashdata('error', 'Email ou senha inválidos.');
         return redirect()->to('/login');
+    }
+
+    public function forgotForm()
+    {
+        return view('auth/forgot_password');
+    }
+
+    public function forgotAction()
+    {
+        $this->auth->requestPasswordReset((string) $this->request->getPost('email'));
+        session()->setFlashdata('success', 'Se o e-mail estiver cadastrado, enviaremos instruções para redefinir a senha.');
+        return redirect()->to('/senha/esqueci');
+    }
+
+    public function changePasswordForm()
+    {
+        return view('auth/change_password');
+    }
+
+    public function changePasswordAction()
+    {
+        [$ok, $message] = $this->auth->changePassword(
+            (int) session('user_id'),
+            (string) $this->request->getPost('current_password'),
+            (string) $this->request->getPost('password'),
+            (string) $this->request->getPost('password_confirmation')
+        );
+        session()->setFlashdata($ok ? 'success' : 'error', $message);
+        return redirect()->to($ok ? '/' : '/senha');
+    }
+
+    public function resetForm(string $token)
+    {
+        return view('auth/reset_password', ['token' => $token]);
+    }
+
+    public function resetAction(string $token)
+    {
+        [$ok, $message] = $this->auth->resetPassword(
+            $token,
+            (string) $this->request->getPost('password'),
+            (string) $this->request->getPost('password_confirmation')
+        );
+        session()->setFlashdata($ok ? 'success' : 'error', $message);
+        return redirect()->to($ok ? '/login' : '/senha/redefinir/' . $token);
+    }
+
+    public function users()
+    {
+        if (! $this->auth->canConfirm()) {
+            return $this->response->setStatusCode(403)->setBody('Acesso restrito ao coordenador.');
+        }
+        return view('auth/users', ['users' => (new UserModel())->orderBy('name')->findAll()]);
+    }
+
+    public function createUserForm()
+    {
+        if (! $this->auth->canConfirm()) {
+            return $this->response->setStatusCode(403)->setBody('Acesso restrito ao coordenador.');
+        }
+        return view('auth/create_user');
+    }
+
+    public function createUserAction()
+    {
+        if (! $this->auth->canConfirm()) {
+            return $this->response->setStatusCode(403)->setBody('Acesso restrito ao coordenador.');
+        }
+        [$ok, $message] = $this->auth->createUser(
+            (string) $this->request->getPost('name'),
+            (string) $this->request->getPost('email'),
+            (string) $this->request->getPost('password'),
+            (string) $this->request->getPost('role')
+        );
+        session()->setFlashdata($ok ? 'success' : 'error', $message);
+        return redirect()->to($ok ? '/usuarios' : '/usuarios/novo');
     }
 
     /**
