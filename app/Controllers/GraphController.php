@@ -24,8 +24,8 @@ class GraphController extends BaseController
             $allEntities = $entityModel->findByResearch($researchId);
             $allRels     = $relModel->findByResearch($researchId);
         } else {
-            $allEntities = $entityModel->findAllRaw();
-            $allRels     = $relModel->findAllRaw();
+            $allEntities = $entityModel->findGraphNodes();
+            $allRels     = $relModel->findGraphEdges();
         }
 
         // Mapear somente campos necessários para o vis-network

@@ -57,6 +57,19 @@ class EntityModel extends Model
     }
 
     /**
+     * Retorna somente os campos necessários para desenhar o grafo.
+     * Não carregar attributes JSONB reduz transferência e memória.
+     */
+    public function findGraphNodes(): array
+    {
+        return $this->db->table('entities')
+            ->select('id, type, name, status')
+            ->orderBy('id', 'ASC')
+            ->get()
+            ->getResultArray();
+    }
+
+    /**
      * Busca todas as entidades (nós) associadas a uma pesquisa:
      * - Documentos vinculados diretamente à pesquisa.
      * - Entidades presentes em relações lastreadas por documentos da pesquisa.
@@ -64,7 +77,7 @@ class EntityModel extends Model
     public function findByResearch(int $researchId): array
     {
         $sql = "
-            SELECT DISTINCT e.*
+            SELECT DISTINCT e.id, e.type, e.name, e.status
             FROM entities e
             LEFT JOIN research_documents rd ON rd.document_id = e.id AND e.type = 'document'
             LEFT JOIN relationships r ON (r.source_entity_id = e.id OR r.target_entity_id = e.id)

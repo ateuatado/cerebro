@@ -52,6 +52,18 @@ class RelationshipModel extends Model
     }
 
     /**
+     * Retorna somente os campos necessários para desenhar as arestas.
+     */
+    public function findGraphEdges(): array
+    {
+        return $this->db->table('relationships')
+            ->select('id, source_entity_id, target_entity_id, relationship_type, direction, confidence, status')
+            ->orderBy('id', 'ASC')
+            ->get()
+            ->getResultArray();
+    }
+
+    /**
      * Busca relações onde a entidade é origem.
      */
     public function findBySource(int $entityId): array
@@ -81,7 +93,7 @@ class RelationshipModel extends Model
     public function findByResearch(int $researchId): array
     {
         return $this->db->table('relationships r')
-            ->select('r.*')
+            ->select('r.id, r.source_entity_id, r.target_entity_id, r.relationship_type, r.direction, r.confidence, r.status')
             ->join('research_documents rd', 'rd.document_id = r.source_document_id')
             ->where('rd.research_id', $researchId)
             ->get()
