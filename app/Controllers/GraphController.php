@@ -29,6 +29,7 @@ class GraphController extends BaseController
         }
 
         // Mapear somente campos necessários para o vis-network
+        $allRels = (new \App\Services\ExploratoryGraphService())->relationships($allEntities, $allRels);
         $graphEntities = array_map(fn($e) => [
             'id'     => $e['id'],
             'name'   => $e['name'],
@@ -46,12 +47,10 @@ class GraphController extends BaseController
             'status'            => $r['status'],
         ], $allRels);
 
-        $documentaryLinks = (new \App\Models\EntityObservationModel())->findGraphLinks($researchId);
-
         return view('graph/index', [
             'graphData'         => [
                 'entities'      => $graphEntities,
-                'relationships' => array_merge($graphRels, $documentaryLinks),
+                'relationships' => $graphRels,
             ],
             'researches'        => $researches,
             'currentResearchId' => $researchId,

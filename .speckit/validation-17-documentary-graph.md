@@ -23,3 +23,11 @@ As futuras sugestões não resolvidas ficam no detalhe do documento-fonte com
 motivo e trecho original. Não são promovidas automaticamente a relações;
 correção e cadastro continuam pela revisão humana existente. O registro original
 é preservado mesmo depois de cadastro manual de uma relação revisada.
+
+## Revisão T3 — Grafo exploratório sem vínculos de fonte
+
+A política de exibição acima foi substituída a pedido do usuário: ocorrências
+e menções documentais ficam apenas nos detalhes, sem linhas no grafo.
+Relações com o próprio documento-fonte também são omitidas. Os nós não são
+removidos; entidades sem interconexões ficam soltas. A revisão não exige migration.
+Teste do filtro aprovado: 1 teste, 4 asserções; sintaxe PHP e diff-check válidos.

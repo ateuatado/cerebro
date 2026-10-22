@@ -57,7 +57,7 @@ class RelationshipModel extends Model
     public function findGraphEdges(): array
     {
         return $this->db->table('relationships')
-            ->select('id, source_entity_id, target_entity_id, relationship_type, direction, confidence, status')
+            ->select('id, source_entity_id, target_entity_id, relationship_type, direction, confidence, status, source_document_id')
             ->orderBy('id', 'ASC')
             ->get()
             ->getResultArray();
@@ -93,7 +93,7 @@ class RelationshipModel extends Model
     public function findByResearch(int $researchId): array
     {
         return $this->db->table('relationships r')
-            ->select('r.id, r.source_entity_id, r.target_entity_id, r.relationship_type, r.direction, r.confidence, r.status')
+            ->select('r.id, r.source_entity_id, r.target_entity_id, r.relationship_type, r.direction, r.confidence, r.status, r.source_document_id')
             ->join('research_documents rd', 'rd.document_id = r.source_document_id')
             ->where('rd.research_id', $researchId)
             ->get()

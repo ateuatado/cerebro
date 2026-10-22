@@ -23,3 +23,12 @@ ocorrências já armazenadas e não dependem de nova chamada de IA.
 Aceite: entidade sem relação histórica mas com ocorrência conecta-se à fonte;
 repetições do mesmo par produzem uma linha; confirmado não mostra proveniência;
 relação inválida mantém fonte e payload, sem entrar na tabela relationships.
+
+## Revisão de visualização solicitada em 2026-10-22
+
+Substitui a exibição de proveniência prevista acima: o grafo exploratório não
+desenha ocorrências nem relações cuja ponta seja o próprio documento-fonte.
+Menções documentais extraídas pela IA também são omitidas, inclusive quando a
+fonte foi representada por outro nó documental. Relações históricas com outros
+documentos (ex.: publicou) continuam visíveis. Todos os nós são preservados,
+inclusive isolados; fonte e evidências continuam disponíveis no detalhe.

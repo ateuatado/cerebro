@@ -9,3 +9,6 @@
 
 Lint PHP/JS, diff-check e testes direcionados. pi-lens indisponível nesta sessão.
 Testes PostgreSQL dependem de conexão dedicada; não usar o acervo para testes.
+
+Revisão visual: filtrar somente a projeção de arestas nos grafos geral, por
+pesquisa e dashboard; preservar nós, armazenamento e detalhes das fontes.

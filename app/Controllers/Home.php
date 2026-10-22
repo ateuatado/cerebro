@@ -76,7 +76,7 @@ class Home extends BaseController
             'direction'        => $r['direction'],
             'confidence'       => $r['confidence'],
             'status'           => $r['status'],
-        ], $recentRels);
+        ], (new \App\Services\ExploratoryGraphService())->relationships($allEntities, $recentRels));
 
         return view('dashboard/index', [
             'stats'               => $stats,
