@@ -69,7 +69,7 @@ class EntityModel extends Model
     public function findGraphNodes(): array
     {
         return $this->db->table('entities')
-            ->select('id, type, name, status')
+            ->select('id, type, name, status, graph_hidden')
             ->orderBy('id', 'ASC')
             ->get()
             ->getResultArray();
@@ -83,7 +83,7 @@ class EntityModel extends Model
     public function findByResearch(int $researchId): array
     {
         $sql = "
-            SELECT e.id, e.type, e.name, e.status
+            SELECT e.id, e.type, e.name, e.status, e.graph_hidden
             FROM entities e
             WHERE e.id IN (
                 SELECT document_id FROM research_documents WHERE research_id = ?

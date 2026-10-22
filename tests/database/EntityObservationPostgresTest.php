@@ -31,10 +31,12 @@ final class EntityObservationPostgresTest extends TestCase
         require_once APPPATH . 'Database/Migrations/2026-07-27-000002_CreateRelationshipsTable.php';
         require_once APPPATH . 'Database/Migrations/2026-10-22-000001_CreateEntityObservations.php';
         require_once APPPATH . 'Database/Migrations/2026-10-22-000002_CreateUnresolvedRelationships.php';
+        require_once APPPATH . 'Database/Migrations/2026-10-22-000003_AddEntityGraphVisibility.php';
         (new \App\Database\Migrations\CreateEntitiesTable($forge))->up();
         (new \App\Database\Migrations\CreateRelationshipsTable($forge))->up();
         (new \App\Database\Migrations\CreateEntityObservations($forge))->up();
         (new \App\Database\Migrations\CreateUnresolvedRelationships($forge))->up();
+        (new \App\Database\Migrations\AddEntityGraphVisibility($forge))->up();
     }
 
     protected function tearDown(): void
@@ -66,6 +68,31 @@ final class EntityObservationPostgresTest extends TestCase
         $this->assertNotSame($first['id'], $document['id']);
         $this->pg->table('entities')->where('id', $docs[0]['id'])->delete();
         $this->assertSame(1, $this->pg->table('entity_observations')->countAllResults());
+    }
+
+    public function testVisibilityDoesNotChangeResearchData(): void
+    {
+        $this->pg->query("INSERT INTO entities (name,type) VALUES ('Página','document')");
+        $documentId = (int)$this->pg->insertID();
+        $service = new \App\Services\DocumentExtractionService();
+        $stats = $service->persistGraphData($documentId, 'Página', [
+            ['name' => 'O PARAFUSO', 'type' => 'document', 'attributes' => ['titulo' => 'O PARAFUSO']],
+            ['name' => 'Pessoa', 'type' => 'person'],
+        ], [['source_name' => 'Pessoa', 'target_name' => 'O PARAFUSO', 'relationship_type' => 'editou']], null);
+        $id = $stats['nameToIdMap']['o parafuso'];
+        $model = new \App\Models\EntityModel();
+        $before = $model->find($id);
+        $this->assertTrue($model->setGraphHidden($id, true));
+        $after = $model->find($id);
+        foreach (['name', 'type', 'status', 'attributes', 'created_by', 'validated_by'] as $field) {
+            $this->assertSame($before[$field], $after[$field]);
+        }
+        $graph = new \App\Services\ExploratoryGraphService();
+        $this->assertCount(2, $graph->entities($model->findGraphNodes()));
+        $this->assertSame(1, $this->pg->table('relationships')->countAllResults());
+        $this->assertSame(2, $this->pg->table('entity_observations')->countAllResults());
+        $this->assertTrue($model->setGraphHidden($id, false));
+        $this->assertCount(3, $graph->entities($model->findGraphNodes()));
     }
 
     public function testGraphReusesNodesButKeepsRelationshipsFromDifferentSources(): void

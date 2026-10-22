@@ -61,12 +61,13 @@ class Home extends BaseController
         unset($rel);
 
         // Dados do grafo para vis-network
+        $graphService = new \App\Services\ExploratoryGraphService();
         $graphEntities = array_map(fn($e) => [
             'id'     => $e['id'],
             'name'   => $e['name'],
             'type'   => $e['type'],
             'status' => $e['status'],
-        ], $allEntities);
+        ], $graphService->entities($allEntities));
 
         $graphRels = array_map(fn($r) => [
             'id'               => $r['id'],
@@ -76,7 +77,7 @@ class Home extends BaseController
             'direction'        => $r['direction'],
             'confidence'       => $r['confidence'],
             'status'           => $r['status'],
-        ], (new \App\Services\ExploratoryGraphService())->relationships($allEntities, $recentRels));
+        ], $graphService->relationships($allEntities, $recentRels));
 
         return view('dashboard/index', [
             'stats'               => $stats,

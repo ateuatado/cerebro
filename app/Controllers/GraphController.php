@@ -29,7 +29,9 @@ class GraphController extends BaseController
         }
 
         // Mapear somente campos necessários para o vis-network
-        $allRels = (new \App\Services\ExploratoryGraphService())->relationships($allEntities, $allRels);
+        $graphService = new \App\Services\ExploratoryGraphService();
+        $allRels = $graphService->relationships($allEntities, $allRels);
+        $allEntities = $graphService->entities($allEntities);
         $graphEntities = array_map(fn($e) => [
             'id'     => $e['id'],
             'name'   => $e['name'],

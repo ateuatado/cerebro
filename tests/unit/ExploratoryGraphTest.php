@@ -5,6 +5,27 @@ use CodeIgniter\Test\CIUnitTestCase;
 
 final class ExploratoryGraphTest extends CIUnitTestCase
 {
+    public function testHiddenHubLeavesNeighboursVisibleAndCanBeRestored(): void
+    {
+        $entities = [
+            ['id' => '1', 'type' => 'person', 'graph_hidden' => 't'],
+            ['id' => '2', 'type' => 'person', 'graph_hidden' => 'f'],
+            ['id' => '3', 'type' => 'person', 'graph_hidden' => false],
+        ];
+        $edges = [
+            ['id' => 1, 'source_entity_id' => 1, 'target_entity_id' => 2, 'relationship_type' => 'conheceu'],
+            ['id' => 2, 'source_entity_id' => 2, 'target_entity_id' => 3, 'relationship_type' => 'conheceu'],
+        ];
+        $service = new ExploratoryGraphService();
+        $this->assertSame(['2', '3'], array_column($service->entities($entities), 'id'));
+        $this->assertSame([2], array_column($service->relationships($entities, $edges), 'id'));
+        $this->assertCount(3, $entities);
+        $this->assertCount(2, $edges);
+        $entities[0]['graph_hidden'] = 'f';
+        $this->assertCount(3, $service->entities($entities));
+        $this->assertCount(2, $service->relationships($entities, $edges));
+    }
+
     public function testProvenanceIsHiddenButHistoricalConnectionsAndIsolatedNodesArePreserved(): void
     {
         $entities = [
