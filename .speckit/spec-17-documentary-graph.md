@@ -40,3 +40,10 @@ halo destacados; isolados ficam cinza. Recalcular ao aplicar filtros, sem
 considerar vínculos documentais, pontas ausentes ou autorrelações. Bordas e
 status de hipótese/confirmação permanecem. Tipos continuam acessíveis nos
 detalhes. Não alterar física, dados, relações ou atribuir sentido à proximidade.
+
+## Espaço de exploração no dashboard
+
+Ampliar a altura do canvas do dashboard de 420px para uma área proporcional à
+janela (78vh, entre 560px e 1100px; em telas pequenas, 65vh com mínimo de 360px).
+Entidades e relações recentes ficam em acordeão Bootstrap local fechado
+inicialmente, preservando listas e links. Sem alterar física ou dados.

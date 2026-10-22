@@ -150,6 +150,32 @@
     #cerebro-graph { height: 280px; }
 }
 
+/* Dashboard: priorizar a exploração, mantendo a área proporcional à janela. */
+.cbr-dashboard-graph #cerebro-graph {
+    height: clamp(560px, 78vh, 1100px);
+}
+
+.cbr-recent-accordion .accordion-item {
+    background: var(--cbr-surface);
+    border-color: var(--cbr-border);
+    color: var(--cbr-text);
+}
+
+.cbr-recent-accordion .accordion-button {
+    background: var(--cbr-surface);
+    color: var(--cbr-text);
+}
+
+.cbr-recent-accordion .accordion-button:not(.collapsed) {
+    background: var(--cbr-surface-2);
+    box-shadow: none;
+}
+
+@media (max-width: 575.98px) {
+    .cbr-dashboard-graph #cerebro-graph { height: 65vh; min-height: 360px; }
+    .cbr-dashboard-graph .cbr-graph-header { flex-wrap: wrap; gap: 0.75rem; }
+}
+
 /* Legenda do grafo */
 .cbr-connectivity-key { color: #22d3ee; }
 

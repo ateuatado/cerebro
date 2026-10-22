@@ -15,3 +15,6 @@ pesquisa e dashboard; preservar nós, armazenamento e detalhes das fontes.
 
 Destaque de conectividade: derivar estilos somente das arestas visíveis em
 cada filtro, sem mutar estilos-base ou dados. Testar realce e restauração.
+
+Dashboard: classe de escopo para altura responsiva, acordeão acessível com
+Bootstrap local e inicialização do grafo em JS externo. Verificar renderização.

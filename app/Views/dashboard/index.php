@@ -90,7 +90,7 @@ $graphData           = $graphData           ?? ['entities' => [], 'relationships
     </div><!-- /.cbr-stats-grid -->
 
     <!-- Grafo vis-network -->
-    <div class="cbr-graph-container mb-3" role="region" aria-label="Visualização do grafo">
+    <div class="cbr-graph-container cbr-dashboard-graph mb-3" role="region" aria-label="Visualização do grafo">
 
         <div class="cbr-graph-header">
             <h2 class="cbr-graph-title">
@@ -174,6 +174,18 @@ $graphData           = $graphData           ?? ['entities' => [], 'relationships
     </div><!-- /.cbr-graph-container -->
 
     <!-- Recentes -->
+    <div class="accordion cbr-recent-accordion" id="dashboard-recent-accordion">
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#dashboard-recent-content"
+                        aria-expanded="false" aria-controls="dashboard-recent-content">
+                    Entidades e relações recentes
+                </button>
+            </h2>
+            <div id="dashboard-recent-content" class="accordion-collapse collapse"
+                 data-bs-parent="#dashboard-recent-accordion">
+                <div class="accordion-body">
     <div class="cbr-dash-grid">
 
         <!-- Entidades recentes -->
@@ -265,6 +277,10 @@ $graphData           = $graphData           ?? ['entities' => [], 'relationships
         </div>
 
     </div><!-- /.cbr-dash-grid -->
+                </div>
+            </div>
+        </div>
+    </div>
 
 </div><!-- /.fade-in-up -->
 
@@ -283,20 +299,7 @@ echo view('layout/base', [
     'content'    => $content,
     'pageCss'    => ['dashboard.css'],
     'pageJs'     => !empty($graphData['entities'])
-                    ? ['../vendor/vis-network/vis-network.min.js', 'graph.js']
+                    ? ['../vendor/vis-network/vis-network.min.js', 'graph.js', 'dashboard.js']
                     : [],
 ]);
 ?>
-
-<?php if (!empty($graphData['entities'])): ?>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    var raw = document.getElementById('graph-data');
-    if (raw && typeof CerebroGraph !== 'undefined') {
-        try {
-            CerebroGraph.init('cerebro-graph', JSON.parse(raw.textContent));
-        } catch(e) { console.error('Graph init error:', e); }
-    }
-});
-</script>
-<?php endif; ?>
