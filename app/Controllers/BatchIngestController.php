@@ -39,6 +39,10 @@ class BatchIngestController extends BaseController
      */
     public function uploadItem()
     {
+        // O filtro CSRF já renovou o token: devolvê-lo inclusive nas falhas
+        // tratadas permite que o próximo arquivo da fila seja enviado.
+        $this->response->setHeader('X-CSRF-TOKEN', csrf_hash());
+
         if (!$this->request->isAJAX()) {
             return $this->response->setStatusCode(400)->setJSON(['error' => 'Requisição inválida']);
         }

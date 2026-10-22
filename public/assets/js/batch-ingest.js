@@ -170,6 +170,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     body: formData
                 });
 
+                const renewedToken = response.headers.get('X-CSRF-TOKEN');
+                if (csrf && renewedToken) {
+                    csrf.content = renewedToken;
+                }
+
                 const responseText = await response.text();
                 let data;
                 try {
