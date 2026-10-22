@@ -46,10 +46,12 @@ class GraphController extends BaseController
             'status'            => $r['status'],
         ], $allRels);
 
+        $documentaryLinks = (new \App\Models\EntityObservationModel())->findGraphLinks($researchId);
+
         return view('graph/index', [
             'graphData'         => [
                 'entities'      => $graphEntities,
-                'relationships' => $graphRels,
+                'relationships' => array_merge($graphRels, $documentaryLinks),
             ],
             'researches'        => $researches,
             'currentResearchId' => $researchId,

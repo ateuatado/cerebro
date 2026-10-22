@@ -102,6 +102,17 @@ const CerebroGraph = (() => {
     }
 
     function buildEdgeOptions(rel) {
+        if (rel.kind === 'documentary') {
+            const title = document.createElement('div');
+            title.textContent = `Ocorrência sugerida na fonte (${rel.occurrences}). Consulte a entidade para revisar as evidências. Não representa relação histórica confirmada.`;
+            return {
+                id: rel.id, from: rel.source_entity_id, to: rel.target_entity_id,
+                label: 'ocorrência na fonte', title, arrows: '', dashes: [2, 6],
+                color: { color: '#94a3b8', opacity: 0.45 }, width: 1,
+                font: { color: '#94a3b8', size: 10 },
+                _kind: 'documentary', _status: 'hypothesis',
+            };
+        }
         const isHypothesis = rel.status !== 'confirmed';
         const confidence   = Math.round((rel.confidence || 0.75) * 100);
         return {
@@ -232,7 +243,8 @@ const CerebroGraph = (() => {
             return n._type === activeFilter;
         });
         const visibleIds = new Set(filteredNodes.map(n => n.id));
-        const filteredEdges = allEdges.filter(e => visibleIds.has(e.from) && visibleIds.has(e.to));
+        const filteredEdges = allEdges.filter(e => visibleIds.has(e.from) && visibleIds.has(e.to)
+            && !(activeFilter === 'confirmed' && e._kind === 'documentary'));
 
         nodesDS.clear();
         edgesDS.clear();

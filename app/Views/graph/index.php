@@ -8,7 +8,8 @@ $role = $auth->currentUser()['role'] ?? 'colaborador';
 
 $graphData    = $graphData    ?? ['entities'=>[], 'relationships'=>[]];
 $entityCount  = count($graphData['entities']);
-$relCount     = count($graphData['relationships']);
+$relCount     = count(array_filter($graphData['relationships'], static fn($r) => ($r['kind'] ?? '') !== 'documentary'));
+$documentaryCount = count($graphData['relationships']) - $relCount;
 
 ob_start();
 ?>
@@ -121,6 +122,7 @@ ob_start();
                  aria-label="Grafo interativo — clique num nó para ver detalhes, clique duplo para abrir a entidade"></div>
 
             <div class="cbr-graph-legend">
+                <div class="cbr-legend-item text-secondary"><span>··· Ocorrência sugerida na fonte (<?= $documentaryCount ?> vínculos; não são relações históricas)</span></div>
                 <div class="cbr-legend-item"><div class="cbr-legend-dot" style="background:var(--cbr-person)"></div><span>Pessoa</span></div>
                 <div class="cbr-legend-item"><div class="cbr-legend-dot" style="background:var(--cbr-location)"></div><span>Local</span></div>
                 <div class="cbr-legend-item"><div class="cbr-legend-dot" style="background:var(--cbr-event)"></div><span>Evento</span></div>
