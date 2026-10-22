@@ -187,93 +187,109 @@ class DocumentExtractionService
     public function persistGraphData(int $docId, string $docTitle, array $entities, array $relationships, ?int $userId): array
     {
         $db = \Config\Database::connect();
-        $nameToIdMap = [];
-        $newEntitiesCount = 0;
+        $db->transBegin();
+        try {
+            $db->query('SELECT pg_advisory_xact_lock(?, ?)', [16, $docId]);
+            $nameToIdMap = [];
+            $newEntitiesCount = 0;
 
-        // A) Mapear/Cadastrar Entidades
-        foreach ($entities as $ent) {
-            $name = trim($ent['name'] ?? '');
-            $type = strtolower(trim($ent['type'] ?? 'person'));
+            // Ordem estável de locks evita ciclos entre documentos concorrentes.
+            usort($entities, fn(array $a, array $b): int =>
+                strcmp($this->identityService->normalize((string) ($a['name'] ?? '')),
+                    $this->identityService->normalize((string) ($b['name'] ?? ''))));
 
-            if (empty($name)) continue;
-            if (!in_array($type, ['person', 'location', 'event', 'document'])) {
-                $type = 'person';
-            }
+            // A) Mapear/Cadastrar Entidades
+            foreach ($entities as $ent) {
+                $name = trim($ent['name'] ?? '');
+                $type = strtolower(trim($ent['type'] ?? 'person'));
 
-            $key = $this->identityService->normalize($name);
-            $existing = $this->identityService->findExisting($type, $name);
-
-            if ($existing) {
-                $eId = (int)$existing['id'];
-            } else {
-                // Injetar mencionado_em para rastreabilidade (todo doc extraído aponta para sua fonte)
-                $entAttrs = $ent['attributes'] ?? [];
-                if (!isset($entAttrs['mencionado_em'])) {
-                    $entAttrs['mencionado_em'] = $docTitle;
+                if (empty($name)) continue;
+                if (!in_array($type, ['person', 'location', 'event', 'document'])) {
+                    throw new \RuntimeException('Tipo inválido para ' . $name . '. Revise a extração.');
                 }
 
-                $eId = $this->entityModel->insert([
-                    'name'         => $name,
-                    'type'         => $type,
-                    'attributes'   => json_encode($entAttrs, JSON_UNESCAPED_UNICODE),
-                    'status'       => 'hypothesis',
-                    'created_by'   => $userId,
-                    'validated_by' => null,
-                ]);
-                if ($eId) {
+                $key = $this->identityService->normalize($name);
+                $record = (new EntityObservationService())->record(
+                    $ent, $docId, $docTitle, $userId,
+                    is_array($ent['source_reference'] ?? null) ? $ent['source_reference'] : []
+                );
+                $eId = $record['id'];
+                if ($record['created']) {
                     $newEntitiesCount++;
                 }
+
+                if (isset($nameToIdMap[$key]) && $nameToIdMap[$key] !== $eId) {
+                    throw new \RuntimeException('Documento e entidade com nome indistinguível: ' . $name . '. Revise a extração.');
+                }
+                $nameToIdMap[$key] = $eId;
             }
 
-            $nameToIdMap[$key] = $eId;
-        }
+            // B) Cadastrar Relações no Grafo
+            $newRelsCount = 0;
+            foreach ($relationships as $rel) {
+                $sName = $this->identityService->normalize((string) ($rel['source_name'] ?? ''));
+                $tName = $this->identityService->normalize((string) ($rel['target_name'] ?? ''));
+                $rType = strtolower(trim($rel['relationship_type'] ?? 'associado_a'));
+                $rDir  = strtolower(trim($rel['direction'] ?? 'directed'));
+                $conf  = floatval($rel['confidence'] ?? 0.85);
+                $excr  = mb_substr(trim($rel['excerpt'] ?? ''), 0, 250);
 
-        // B) Cadastrar Relações no Grafo
-        $newRelsCount = 0;
-        foreach ($relationships as $rel) {
-            $sName = $this->identityService->normalize((string) ($rel['source_name'] ?? ''));
-            $tName = $this->identityService->normalize((string) ($rel['target_name'] ?? ''));
-            $rType = strtolower(trim($rel['relationship_type'] ?? 'associado_a'));
-            $rDir  = strtolower(trim($rel['direction'] ?? 'directed'));
-            $conf  = floatval($rel['confidence'] ?? 0.85);
-            $excr  = mb_substr(trim($rel['excerpt'] ?? ''), 0, 250);
+                if (!isset($nameToIdMap[$sName]) || !isset($nameToIdMap[$tName])) {
+                    continue;
+                }
 
-            if (!isset($nameToIdMap[$sName]) || !isset($nameToIdMap[$tName])) {
-                continue;
+                $sourceId = $nameToIdMap[$sName];
+                $targetId = $nameToIdMap[$tName];
+
+                if ($sourceId === $targetId) continue;
+
+                $sourceRefObj = [
+                    'fonte'  => $docTitle,
+                    'trecho' => $excr ?: 'Citação extraída do documento',
+                ];
+
+                $direction = $rDir === 'symmetric' ? 'symmetric' : 'directed';
+                $referenceJson = json_encode($sourceRefObj, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+                $duplicate = $db->query('SELECT id FROM relationships
+                    WHERE source_entity_id = ? AND target_entity_id = ?
+                    AND relationship_type = ? AND direction = ? AND source_document_id = ?
+                    AND source_reference = ?::jsonb LIMIT 1',
+                    [$sourceId, $targetId, $rType, $direction, $docId, $referenceJson]
+                )->getRowArray();
+                if ($duplicate) continue;
+
+                $relId = $this->relationshipModel->insert([
+                    'source_entity_id'   => $sourceId,
+                    'target_entity_id'   => $targetId,
+                    'relationship_type'  => $rType,
+                    'direction'          => $direction,
+                    'status'             => 'hypothesis',
+                    'confidence'         => round(max(0.5, min(0.99, $conf)), 2),
+                    'source_document_id' => $docId,
+                    'source_reference'   => $referenceJson,
+                    'created_by'         => $userId,
+                    'validated_by'       => null,
+                ]);
+
+                if ($relId) {
+                    $newRelsCount++;
+                } else {
+                    throw new \RuntimeException('Não foi possível salvar uma relação da extração.');
+                }
             }
 
-            $sourceId = $nameToIdMap[$sName];
-            $targetId = $nameToIdMap[$tName];
-
-            if ($sourceId === $targetId) continue;
-
-            $sourceRefObj = [
-                'fonte'  => $docTitle,
-                'trecho' => $excr ?: 'Citação extraída do documento',
+            if (!$db->transStatus()) {
+                throw new \RuntimeException('A extração não pôde ser salva integralmente.');
+            }
+            $db->transCommit();
+            return [
+                'newEntities'  => $newEntitiesCount,
+                'newRels'      => $newRelsCount,
+                'nameToIdMap'  => $nameToIdMap,
             ];
-
-            $relId = $this->relationshipModel->insert([
-                'source_entity_id'   => $sourceId,
-                'target_entity_id'   => $targetId,
-                'relationship_type'  => $rType,
-                'direction'          => $rDir === 'symmetric' ? 'symmetric' : 'directed',
-                'status'             => 'hypothesis',
-                'confidence'         => round(max(0.5, min(0.99, $conf)), 2),
-                'source_document_id' => $docId,
-                'source_reference'   => json_encode($sourceRefObj, JSON_UNESCAPED_UNICODE),
-                'created_by'         => $userId,
-                'validated_by'       => null,
-            ]);
-
-            if ($relId) {
-                $newRelsCount++;
-            }
+        } catch (\Throwable $e) {
+            $db->transRollback();
+            throw $e;
         }
-
-        return [
-            'newEntities'  => $newEntitiesCount,
-            'newRels'      => $newRelsCount,
-            'nameToIdMap'  => $nameToIdMap,
-        ];
     }
 }

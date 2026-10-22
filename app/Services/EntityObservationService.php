@@ -9,6 +9,31 @@ use RuntimeException;
 /** Sugestões documentais não alteram atributos ou validação da identidade. */
 class EntityObservationService
 {
+    /** Acompanha a mesclagem humana existente sem perder evidências por CASCADE. */
+    public function transfer(int $sourceId, int $targetId): void
+    {
+        if ($sourceId === $targetId) return;
+        $db = Database::connect();
+        $db->transBegin();
+        try {
+            $db->query('INSERT INTO entity_observations
+                (entity_id, source_document_id, suggested_type, attributes, source_reference, fingerprint, created_at)
+                SELECT CASE WHEN entity_id = ? THEN ? ELSE entity_id END,
+                       CASE WHEN source_document_id = ? THEN ? ELSE source_document_id END,
+                       suggested_type, attributes, source_reference, fingerprint, created_at
+                FROM entity_observations WHERE entity_id = ? OR source_document_id = ?
+                ON CONFLICT (entity_id, source_document_id, fingerprint) DO NOTHING',
+                [$sourceId, $targetId, $sourceId, $targetId, $sourceId, $sourceId]);
+            $db->table('entity_observations')->where('entity_id', $sourceId)
+                ->orWhere('source_document_id', $sourceId)->delete();
+            if (!$db->transStatus()) throw new RuntimeException('Não foi possível transferir as evidências.');
+            $db->transCommit();
+        } catch (\Throwable $e) {
+            $db->transRollback();
+            throw $e;
+        }
+    }
+
     public function record(array $entity, int $documentId, string $documentTitle, ?int $userId, array $reference = []): array
     {
         $identity = new EntityIdentityService();

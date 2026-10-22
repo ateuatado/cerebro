@@ -401,87 +401,26 @@ class DocumentReviewController extends BaseController
         $transcript= $jsonInput['transcription'] ?? '';
 
         $db = \Config\Database::connect();
-        $createdEntitiesCount = 0;
-        $createdRelsCount     = 0;
-        $entityMap            = [];
-        $skippedEntities      = []; // Entidades ignoradas por tipo inválido
-
-        foreach ($entities as $e) {
-            $name = trim($e['name'] ?? '');
-            $type = trim($e['type'] ?? '');
-
-            if (empty($name)) continue;
-
-            // Validação defensiva de tipo (Spec 11)
-            if (!EntityAttributeVocabularyModel::isValidType($type)) {
-                log_message('warning', "confirmRegionEntities: tipo inválido ignorado: '{$type}' para entidade '{$name}'");
-                $skippedEntities[] = [
-                    'name'   => $name,
-                    'type'   => $type,
-                    'reason' => "Tipo '{$type}' não reconhecido pelo sistema. Use: person, location, event ou document.",
-                ];
+        $skippedEntities = [];
+        $validEntities = [];
+        foreach ($entities as $entity) {
+            if (!EntityAttributeVocabularyModel::isValidType($entity['type'] ?? '')) {
+                $skippedEntities[] = ['name' => $entity['name'] ?? '', 'type' => $entity['type'] ?? ''];
                 continue;
             }
-
-            $existing = $db->table('entities')
-                           ->where('name', $name)
-                           ->where('type', $type)
-                           ->get()
-                           ->getRowArray();
-
-            if ($existing) {
-                $entityMap[$name] = $existing['id'];
-            } else {
-                // Mescla atributos editados pelo pesquisador com os retornados pela IA
-                $attributes = $e['attributes'] ?? [];
-                if (!is_array($attributes)) {
-                    $attributes = [];
-                }
-
-                $newId = $this->entityModel->insert([
-                    'name'       => $name,
-                    'type'       => $type,
-                    'status'     => 'hypothesis',
-                    'attributes' => json_encode(
-                        array_filter($attributes, fn($v) => $v !== null && $v !== ''),
-                        JSON_UNESCAPED_UNICODE
-                    ),
-                ]);
-                if ($newId) {
-                    $entityMap[$name] = $newId;
-                    $createdEntitiesCount++;
-                }
-            }
+            $entity['source_reference'] = ['trecho' => $transcript];
+            $validEntities[] = $entity;
         }
-
-        foreach ($rels as $r) {
-            $srcName = trim($r['source_name'] ?? '');
-            $tgtName = trim($r['target_name'] ?? '');
-
-            $srcId = $entityMap[$srcName] ?? null;
-            $tgtId = $entityMap[$tgtName] ?? null;
-
-            if (!$srcId || !$tgtId || $srcId === $tgtId) continue;
-
-            $relType = $r['relationship_type'] ?? 'mencionado_em';
-            $conf    = (float) ($r['confidence'] ?? 0.85);
-
-            $db->table('relationships')->insert([
-                'source_entity_id'   => $srcId,
-                'target_entity_id'   => $tgtId,
-                'relationship_type'  => $relType,
-                'direction'          => $r['direction'] ?? 'directed',
-                'confidence'         => $conf,
-                'status'             => 'hypothesis',
-                'source_document_id' => $id,
-                'source_reference'   => json_encode([
-                    'documento_id' => $id,
-                    'documento'    => $doc['name'],
-                    'trecho'       => $r['excerpt'] ?? '',
-                ], JSON_UNESCAPED_UNICODE),
-            ]);
-            $createdRelsCount++;
+        try {
+            $stats = (new \App\Services\DocumentExtractionService())->persistGraphData(
+                $id, $doc['name'], $validEntities, $rels,
+                (new \App\Services\AuthService())->currentUser()['user_id'] ?? null
+            );
+        } catch (\Throwable $e) {
+            return $this->response->setJSON(['success' => false, 'error' => $e->getMessage()]);
         }
+        $createdEntitiesCount = $stats['newEntities'];
+        $createdRelsCount = $stats['newRels'];
 
         if (!empty(trim($transcript))) {
             $attributes = is_string($doc['attributes']) ? json_decode($doc['attributes'], true) : ($doc['attributes'] ?? []);

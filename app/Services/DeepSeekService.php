@@ -271,15 +271,9 @@ PROMPT;
                     $name = \trim($entity['name'] ?? '');
                     $type = $entity['type'] ?? 'person';
                     if (!empty($name)) {
-                        $key = \mb_strtolower($name) . '|' . $type;
-                        if (!isset($allEntities[$key])) {
-                            $allEntities[$key] = $entity;
-                        } else {
-                            $allEntities[$key]['attributes'] = \array_merge(
-                                $allEntities[$key]['attributes'] ?? [],
-                                $entity['attributes'] ?? []
-                            );
-                        }
+                        // Não sobrescrever atributos de outras ocorrências/blocos.
+                        $entity['source_reference'] = ['parte' => $index + 1, 'fonte_bloco' => $chunkTitle];
+                        $allEntities[] = $entity;
                     }
                 }
 

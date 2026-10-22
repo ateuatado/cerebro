@@ -84,6 +84,7 @@ class DeduplicateEntitiesCommand extends BaseCommand
             [$survivorId, $duplicateId]
         );
         $db->table('research_documents')->where('document_id', $duplicateId)->delete();
+        (new \App\Services\EntityObservationService())->transfer($duplicateId, $survivorId);
         $db->table('entities')->where('id', $duplicateId)->delete();
         $db->transComplete();
     }

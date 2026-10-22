@@ -3,9 +3,6 @@
 namespace App\Controllers;
 
 use App\Models\EntityModel;
-use App\Models\PersonModel;
-use App\Models\LocationModel;
-use App\Models\EventModel;
 use App\Models\RelationshipModel;
 use App\Services\DeepSeekService;
 use App\Services\DocumentParserService;
@@ -132,67 +129,11 @@ class ExtractionController extends BaseController
 
             $createdUser = $this->auth->currentUser()['user_id'] ?? 1;
 
-            // 1. Persistir Entidades como hipóteses
-            $entityNameMap = [];
-            $modelMap = [
-                'person'   => new PersonModel(),
-                'location' => new LocationModel(),
-                'event'    => new EventModel(),
-            ];
-
-            foreach ($extractedEntities as $eData) {
-                $name = trim($eData['name'] ?? '');
-                $type = $eData['type'] ?? 'person';
-                if (empty($name)) continue;
-
-                $existing = $this->entityModel->where('name', $name)->first();
-                if ($existing) {
-                    $entityNameMap[$name] = $existing['id'];
-                    continue;
-                }
-
-                $model = $modelMap[$type] ?? $modelMap['person'];
-                $id = $model->insert([
-                    'type'       => in_array($type, ['person','location','event']) ? $type : 'person',
-                    'name'       => $name,
-                    'status'     => 'hypothesis',
-                    'attributes' => json_encode($eData['attributes'] ?? [], JSON_UNESCAPED_UNICODE),
-                    'created_by' => $createdUser,
-                ]);
-
-                if ($id) {
-                    $entityNameMap[$name] = $id;
-                }
-            }
-
-            // 2. Persistir Relações como hipóteses com source_document_id
-            $countRels = 0;
-            foreach ($extractedRels as $rData) {
-                $srcName = trim($rData['source_name'] ?? '');
-                $tgtName = trim($rData['target_name'] ?? '');
-                $relType = trim($rData['relationship_type'] ?? 'associado_a');
-
-                $srcId = $entityNameMap[$srcName] ?? null;
-                $tgtId = $entityNameMap[$tgtName] ?? null;
-
-                if (!$srcId || !$tgtId || $srcId === $tgtId) continue;
-
-                $confidence = floatval($rData['confidence'] ?? 0.75);
-                $excerpt    = $rData['excerpt'] ?? '';
-
-                $this->relModel->insert([
-                    'source_entity_id'  => $srcId,
-                    'target_entity_id'  => $tgtId,
-                    'relationship_type' => $relType,
-                    'direction'         => ($rData['direction'] ?? 'directed') === 'symmetric' ? 'symmetric' : 'directed',
-                    'confidence'        => round(max(0.5, min(0.99, $confidence)), 2),
-                    'source_document_id'=> $documentId,
-                    'source_reference'  => json_encode(['trecho' => $excerpt], JSON_UNESCAPED_UNICODE),
-                    'status'            => 'hypothesis',
-                    'created_by'        => $createdUser,
-                ]);
-                $countRels++;
-            }
+            $stats = (new \App\Services\DocumentExtractionService())->persistGraphData(
+                $documentId, $doc['name'], $extractedEntities, $extractedRels, $createdUser
+            );
+            $entityNameMap = $stats['nameToIdMap'];
+            $countRels = $stats['newRels'];
 
             session()->setFlashdata('success', "Re-leitura concluída! Extraídas " . count($entityNameMap) . " entidades e {$countRels} relações como hipóteses.");
             return redirect()->to('documentos/' . $documentId . '/revisar');
@@ -222,11 +163,6 @@ class ExtractionController extends BaseController
 
         $docParser = new DocumentParserService();
         $deepSeek  = new DeepSeekService();
-        $modelMap  = [
-            'person'   => new PersonModel(),
-            'location' => new LocationModel(),
-            'event'    => new EventModel(),
-        ];
         $userId = $this->auth->currentUser()['user_id'] ?? 1;
         session_write_close(); // Libera o lock da sessão PHP para requisições paralelas (ex: /grafo)
 
@@ -264,58 +200,12 @@ class ExtractionController extends BaseController
                 $entities = $result['entities'] ?? [];
                 $rels     = $result['relationships'] ?? [];
 
-                $entityNameMap = [];
-                foreach ($entities as $eData) {
-                    $eName = trim($eData['name'] ?? '');
-                    $eType = $eData['type'] ?? 'person';
-                    if (empty($eName)) continue;
-
-                    $existing = $this->entityModel->where('name', $eName)->first();
-                    if ($existing) {
-                        $entityNameMap[$eName] = $existing['id'];
-                        continue;
-                    }
-
-                    $model = $modelMap[$eType] ?? $modelMap['person'];
-                    $eid = $model->insert([
-                        'type'       => in_array($eType, ['person','location','event']) ? $eType : 'person',
-                        'name'       => $eName,
-                        'status'     => 'hypothesis',
-                        'attributes' => json_encode($eData['attributes'] ?? [], JSON_UNESCAPED_UNICODE),
-                        'created_by' => $userId,
-                    ]);
-                    if ($eid) $entityNameMap[$eName] = $eid;
-                }
-
-                $relsCount = 0;
-                foreach ($rels as $rData) {
-                    $srcName = trim($rData['source_name'] ?? '');
-                    $tgtName = trim($rData['target_name'] ?? '');
-                    $relType = trim($rData['relationship_type'] ?? 'associado_a');
-
-                    $srcId = $entityNameMap[$srcName] ?? null;
-                    $tgtId = $entityNameMap[$tgtName] ?? null;
-
-                    if (!$srcId || !$tgtId || $srcId === $tgtId) continue;
-
-                    $confidence = floatval($rData['confidence'] ?? 0.75);
-
-                    $this->relModel->insert([
-                        'source_entity_id'  => $srcId,
-                        'target_entity_id'  => $tgtId,
-                        'relationship_type' => $relType,
-                        'direction'         => ($rData['direction'] ?? 'directed') === 'symmetric' ? 'symmetric' : 'directed',
-                        'confidence'        => round(max(0.5, min(0.99, $confidence)), 2),
-                        'source_document_id'=> $doc['id'],
-                        'source_reference'  => json_encode(['trecho' => $rData['excerpt'] ?? ''], JSON_UNESCAPED_UNICODE),
-                        'status'            => 'hypothesis',
-                        'created_by'        => $userId,
-                    ]);
-                    $relsCount++;
-                }
-
-                $totalEntities += count($entities);
-                $totalRels     += $relsCount;
+                $stats = (new \App\Services\DocumentExtractionService())->persistGraphData(
+                    (int) $doc['id'], $doc['name'], $entities, $rels, $userId
+                );
+                $relsCount = $stats['newRels'];
+                $totalEntities += $stats['newEntities'];
+                $totalRels += $relsCount;
                 $reprocessedCount++;
 
                 $attrs['extraction_status']  = 'completed';

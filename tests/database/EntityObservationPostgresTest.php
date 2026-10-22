@@ -65,4 +65,31 @@ final class EntityObservationPostgresTest extends TestCase
         $this->pg->table('entities')->where('id', $docs[0]['id'])->delete();
         $this->assertSame(1, $this->pg->table('entity_observations')->countAllResults());
     }
+
+    public function testGraphReusesNodesButKeepsRelationshipsFromDifferentSources(): void
+    {
+        $this->pg->query("INSERT INTO entities (name,type) VALUES ('Página 1','document'),('Página 2','document')");
+        $docs = $this->pg->table('entities')->orderBy('id')->get()->getResultArray();
+        $entities = [
+            ['name' => 'Chá do Paraná', 'type' => 'location', 'attributes' => ['descricao' => 'Anúncio']],
+            ['name' => 'Dr. Petinio', 'type' => 'person'],
+        ];
+        $relations = [['source_name' => 'Dr. Petinio', 'target_name' => 'Chá do Paraná',
+            'relationship_type' => 'recomendou', 'excerpt' => 'Recomenda o Chá do Paraná']];
+        $service = new \App\Services\DocumentExtractionService();
+        $first = $service->persistGraphData((int)$docs[0]['id'], 'Página 1', $entities, $relations, null);
+        $entities[0]['type'] = 'event';
+        $second = $service->persistGraphData((int)$docs[1]['id'], 'Página 2', $entities, $relations, null);
+        $this->assertSame($first['nameToIdMap'], $second['nameToIdMap']);
+        $this->assertSame(0, $second['newEntities']);
+        $this->assertSame(2, $this->pg->table('relationships')->countAllResults());
+        $this->assertSame(4, $this->pg->table('entity_observations')->countAllResults());
+        $repeat = $service->persistGraphData((int)$docs[1]['id'], 'Página 2', $entities, $relations, null);
+        $this->assertSame(0, $repeat['newRels']);
+        $this->assertSame(4, $this->pg->table('entity_observations')->countAllResults());
+        $this->pg->query("INSERT INTO entities (name,type) VALUES ('Identidade revisada','location')");
+        $target = (int)$this->pg->insertID();
+        (new EntityObservationService())->transfer($first['nameToIdMap']['chá do paraná'], $target);
+        $this->assertSame(2, $this->pg->table('entity_observations')->where('entity_id', $target)->countAllResults());
+    }
 }

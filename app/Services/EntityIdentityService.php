@@ -11,7 +11,7 @@ class EntityIdentityService
         $scope = $type === 'document' ? "type = 'document'" : "type <> 'document'";
         $rows = Database::connect()->query(
             "SELECT * FROM entities WHERE {$scope}
-             AND lower(regexp_replace(btrim(name), '\\s+', ' ', 'g')) = ? ORDER BY id",
+             AND lower(btrim(regexp_replace(name, '\\s+', ' ', 'g'))) = ? ORDER BY id",
             [$this->normalize($name)]
         )->getResultArray();
         if (count($rows) > 1) {
@@ -37,7 +37,7 @@ class EntityIdentityService
         $row = Database::connect()->query(
             "SELECT * FROM entities
              WHERE type = ?
-               AND lower(regexp_replace(btrim(name), '\\s+', ' ', 'g')) = ?
+               AND lower(btrim(regexp_replace(name, '\\s+', ' ', 'g'))) = ?
              ORDER BY CASE WHEN status = 'confirmed' THEN 0 ELSE 1 END, id ASC
              LIMIT 1",
             [$type, $normalized]
