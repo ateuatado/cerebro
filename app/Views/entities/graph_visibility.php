@@ -8,4 +8,5 @@ $graphHidden = in_array($entity['graph_hidden'] ?? false, [true, 1, '1', 't', 't
         <i class="bi <?= $graphHidden ? 'bi-eye' : 'bi-eye-slash' ?>" aria-hidden="true"></i>
         <span><?= $graphHidden ? 'Mostrar no grafo' : 'Ocultar no grafo' ?></span>
     </button>
+    <small class="d-block text-secondary mt-1"><?= $graphHidden ? 'Oculta nos grafos' : 'Visível nos grafos' ?></small>
 </form>

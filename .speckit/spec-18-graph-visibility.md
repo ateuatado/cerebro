@@ -21,3 +21,7 @@ no código. Não executar limpeza nem atualizar PHP ou migrations anteriores.
 Aceite: botão reversível no detalhe; reenvio idempotente; relações e fontes
 preservadas; estado reconhecido em booleanos PostgreSQL; sem pontas invisíveis;
 filtrar visibilidade antes de montar dados para todos os grafos.
+
+Correção T3: o dashboard deve usar todas as relações na projeção; o limite
+de oito registros aplica-se exclusivamente às listas de atividade recente.
+Informar também o estado atual de visibilidade junto ao botão reversível.

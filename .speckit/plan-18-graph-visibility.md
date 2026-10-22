@@ -9,3 +9,7 @@ restauração. Preparar teste PostgreSQL opt-in e instruções para VPS.
 
 Lint PHP e PHPUnit direcionados; pi-lens indisponível nesta sessão. Não usar
 o banco do acervo para testes ou executar migrations sem revisar pendências.
+
+T3: separar coleção completa de relações da lista recente no dashboard,
+testando mais de oito arestas com dependências simuladas. Preservar filtros
+de fontes e ocultação, estatísticas e listas recentes.

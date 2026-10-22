@@ -39,3 +39,12 @@ Com `database.tests` configurado em PostgreSQL dedicado, sem prefixo, ativar
 `CEREBRO_PG_TESTS=1` e executar o filtro `EntityObservationPostgresTest` no
 PHPUnit. O teste da Spec 18 confirma persistência, restauração e preservação de
 atributos, confirmação, relações e evidências em schema de teste revertido.
+
+## Correção T3 — Grafo completo no dashboard
+
+O dashboard montava o grafo com todas as entidades, porém somente as oito
+relações recentes. Agora consulta todas as arestas leves, mantendo as oito
+somente na lista de recentes. Regressão com 12 relações verifica que todas
+entram no grafo e que a lista permanece com oito. Sete testes, 32 asserções
+aprovados, mais sintaxe PHP e diff-check. Sem nova migration ou reprocessamento.
+O formulário informa explicitamente Visível nos grafos / Oculta nos grafos.

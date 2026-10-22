@@ -11,20 +11,27 @@ use App\Services\AuthService;
  */
 class Home extends BaseController
 {
+    public function __construct(
+        private ?EntityModel $entityModel = null,
+        private ?RelationshipModel $relationshipModel = null
+    ) {
+    }
+
     public function index(): string
     {
-        $entityModel = new EntityModel();
-        $relModel    = new RelationshipModel();
+        $entityModel = $this->entityModel ?? new EntityModel();
+        $relModel    = $this->relationshipModel ?? new RelationshipModel();
 
         // Contadores por tipo
         $allEntities = $entityModel->findAllRaw();
+        $allRels = $relModel->findGraphEdges();
 
         $stats = [
             'persons'       => 0,
             'locations'     => 0,
             'events'        => 0,
             'documents'     => 0,
-            'relationships' => count($relModel->findAll()),
+            'relationships' => count($allRels),
             'pending'       => 0,
             'total'         => count($allEntities),
         ];
@@ -77,7 +84,7 @@ class Home extends BaseController
             'direction'        => $r['direction'],
             'confidence'       => $r['confidence'],
             'status'           => $r['status'],
-        ], $graphService->relationships($allEntities, $recentRels));
+        ], $graphService->relationships($allEntities, $allRels));
 
         return view('dashboard/index', [
             'stats'               => $stats,
