@@ -32,6 +32,7 @@ $routes->group('entidades', ['filter' => 'auth'], function ($routes) {
     $routes->get('(:num)',                'EntityController::show/$1');
     $routes->get('(:num)/editar',         'EntityController::edit/$1');
     $routes->post('(:num)/editar',        'EntityController::update/$1');
+    $routes->post('(:num)/visibilidade-grafo', 'EntityController::setGraphVisibility/$1');
     $routes->post('(:num)/confirmar',     'EntityController::confirm/$1');
     $routes->post('(:num)/atributos',         'EntityController::addAttribute/$1');
     $routes->post('(:num)/atributos/remover', 'EntityController::removeAttribute/$1');

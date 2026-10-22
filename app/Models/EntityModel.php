@@ -21,7 +21,13 @@ class EntityModel extends Model
         'status',
         'created_by',
         'validated_by',
+        'graph_hidden',
     ];
+
+    public function setGraphHidden(int $id, bool $hidden): bool
+    {
+        return $this->update($id, ['graph_hidden' => $hidden ? 't' : 'f']);
+    }
 
     /**
      * Filtra entidades por tipo.

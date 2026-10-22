@@ -30,6 +30,26 @@ class EntityController extends BaseController
         $this->identityService = new EntityIdentityService();
     }
 
+    /** Preferência de apresentação: não modifica o conteúdo da pesquisa. */
+    public function setGraphVisibility(int $id)
+    {
+        if (!$this->entityModel->find($id)) {
+            session()->setFlashdata('error', 'Entidade não encontrada.');
+            return redirect()->to('entidades');
+        }
+        $desired = $this->request->getPost('graph_hidden');
+        if (!in_array($desired, ['0', '1'], true)) {
+            session()->setFlashdata('error', 'Opção de visibilidade inválida.');
+        } elseif ($this->entityModel->setGraphHidden($id, $desired === '1')) {
+            session()->setFlashdata('success', $desired === '1'
+                ? 'Entidade oculta nos grafos. Seus dados e relações foram preservados.'
+                : 'Entidade novamente visível nos grafos.');
+        } else {
+            session()->setFlashdata('error', 'Não foi possível alterar a visibilidade.');
+        }
+        return redirect()->to('entidades/' . $id);
+    }
+
     /**
      * GET /entidades — Listagem com filtros
      */

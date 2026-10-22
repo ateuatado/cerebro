@@ -100,6 +100,9 @@ ob_start();
             </button>
 
             <!-- Mesclar com outra entidade -->
+            <?= view('entities/graph_visibility', ['entity' => $entity]) ?>
+
+            <!-- Mesclar com outra entidade -->
             <button type="button"
                     class="btn btn-outline-warning btn-sm d-flex align-items-center gap-1"
                     data-bs-toggle="modal"
@@ -405,6 +408,10 @@ ob_start();
         'typeConfig' => $typeConfig,
         'attrLabels' => $attrLabels,
     ]) ?>
+
+    <?php if (in_array($entity['graph_hidden'] ?? false, [true, 1, '1', 't', 'true'], true)): ?>
+    <p class="alert alert-info mt-3" role="status">Esta entidade está oculta nos grafos para todos os usuários do projeto. Seus dados, relações e fontes continuam preservados. Use “Mostrar no grafo” para restaurá-la.</p>
+    <?php endif; ?>
 
     <!-- ─── Fonte Primária & Trecho de Origem (se extraído de documentos fontes) ─── -->
     <?php if (!empty($sourceDocuments)): ?>
