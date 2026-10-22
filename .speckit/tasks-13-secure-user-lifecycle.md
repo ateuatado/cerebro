@@ -7,3 +7,4 @@
 - [x] `T5`: Adicionar comandos CLI para criação e redefinição de usuários.
 - [x] `T6`: Configurar SMTP por ambiente e validar fluxos sem exposição de dados.
 - [ ] `T7`: Executar lint/testes e atualizar documentação operacional.
+- [x] `T8`: Corrigir CSRF nos dois botões de limpeza, renovar token e exibir erro real. Seis testes de navegador simulado aprovados, sintaxe PHP/JS e diff-check válidos; pi-lens indisponível. Nenhuma limpeza executada.

@@ -580,6 +580,7 @@ class EntityController extends BaseController
      */
     public function clearAllIngestions()
     {
+        $this->response->setHeader('X-CSRF-TOKEN', csrf_hash());
         if (!$this->auth->canConfirm()) { // Apenas coordenador
             return $this->response->setStatusCode(403)->setJSON(['error' => 'Apenas coordenadores podem zerar a base de dados.']);
         }

@@ -9,17 +9,25 @@ window.clearFullDatabase = function () {
     }
 
     const baseUrl = (window.BASE_URL || '/').replace(/\/+$/, '') + '/';
+    const csrf = document.querySelector('meta[name="csrf-token"]');
+    const body = new FormData();
+    if (csrf) body.append(csrf.dataset.name || 'csrf_test_name', csrf.content);
     fetch(baseUrl + 'api/limpar-banco-total', {
         method: 'POST',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body
     })
-    .then(r => r.json())
+    .then(r => {
+        const token = r.headers.get('X-CSRF-TOKEN');
+        if (csrf && token) csrf.content = token;
+        return r.json();
+    })
     .then(data => {
         if (data.success) {
             alert(data.message);
             window.location.reload();
         } else {
-            alert('Erro ao zerar base: ' + (data.error || 'Acesso negado.'));
+            alert('Erro ao zerar base: ' + (data.error || data.message || 'Não foi possível concluir a limpeza.'));
         }
     })
     .catch(err => {

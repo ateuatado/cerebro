@@ -218,13 +218,21 @@ document.addEventListener('DOMContentLoaded', function () {
             btnClearAllDatabase.disabled = true;
             btnClearAllDatabase.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Zerando base...';
 
+            const csrf = document.querySelector('meta[name="csrf-token"]');
+            const body = new FormData();
+            if (csrf) body.append(csrf.dataset.name || 'csrf_test_name', csrf.content);
             fetch(getBaseUrl() + 'api/limpar-banco-total', {
                 method: 'POST',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
-                }
+                },
+                body
             })
-            .then(response => response.json())
+            .then(response => {
+                const token = response.headers.get('X-CSRF-TOKEN');
+                if (csrf && token) csrf.content = token;
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
                     alert(data.message);
@@ -232,7 +240,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 } else {
                     btnClearAllDatabase.disabled = false;
                     btnClearAllDatabase.innerHTML = '<i class="bi bi-trash3-fill"></i> Zerar Toda a Base';
-                    alert('Erro ao zerar base: ' + (data.error || 'Acesso negado.'));
+                    alert('Erro ao zerar base: ' + (data.error || data.message || 'Não foi possível concluir a limpeza.'));
                 }
             })
             .catch(err => {
