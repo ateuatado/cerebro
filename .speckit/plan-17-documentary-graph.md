@@ -12,3 +12,6 @@ Testes PostgreSQL dependem de conexão dedicada; não usar o acervo para testes.
 
 Revisão visual: filtrar somente a projeção de arestas nos grafos geral, por
 pesquisa e dashboard; preservar nós, armazenamento e detalhes das fontes.
+
+Destaque de conectividade: derivar estilos somente das arestas visíveis em
+cada filtro, sem mutar estilos-base ou dados. Testar realce e restauração.

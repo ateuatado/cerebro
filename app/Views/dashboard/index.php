@@ -153,20 +153,13 @@ $graphData           = $graphData           ?? ['entities' => [], 'relationships
         <!-- Legenda -->
         <div class="cbr-graph-legend" role="list" aria-label="Legenda do grafo">
             <div class="cbr-legend-item" role="listitem">
-                <div class="cbr-legend-dot" style="background:#60a5fa"></div>
-                <span>Pessoa</span>
+                <span class="cbr-connectivity-key">● Ciano: com ligações visíveis</span>
             </div>
             <div class="cbr-legend-item" role="listitem">
-                <div class="cbr-legend-dot" style="background:#34d399"></div>
-                <span>Local</span>
+                <span>● Cinza: sem ligações visíveis</span>
             </div>
             <div class="cbr-legend-item" role="listitem">
-                <div class="cbr-legend-dot" style="background:#f472b6"></div>
-                <span>Evento</span>
-            </div>
-            <div class="cbr-legend-item" role="listitem">
-                <div class="cbr-legend-dot" style="background:#fb923c"></div>
-                <span>Documento</span>
+                <span>Tipo da entidade nos detalhes</span>
             </div>
             <div class="cbr-legend-item" role="listitem">
                 <div class="cbr-legend-dot" style="background:#7c6af7"></div>

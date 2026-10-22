@@ -121,10 +121,8 @@ ob_start();
                  aria-label="Grafo interativo — clique num nó para ver detalhes, clique duplo para abrir a entidade"></div>
 
             <div class="cbr-graph-legend">
-                <div class="cbr-legend-item"><div class="cbr-legend-dot" style="background:var(--cbr-person)"></div><span>Pessoa</span></div>
-                <div class="cbr-legend-item"><div class="cbr-legend-dot" style="background:var(--cbr-location)"></div><span>Local</span></div>
-                <div class="cbr-legend-item"><div class="cbr-legend-dot" style="background:var(--cbr-event)"></div><span>Evento</span></div>
-                <div class="cbr-legend-item"><div class="cbr-legend-dot" style="background:var(--cbr-document)"></div><span>Documento</span></div>
+                <div class="cbr-legend-item"><span class="cbr-connectivity-key">● Ciano: com ligações visíveis</span></div>
+                <div class="cbr-legend-item"><span>● Cinza: sem ligações visíveis. Tipo da entidade nos detalhes.</span></div>
                 <div class="cbr-legend-item"><div class="cbr-legend-dot" style="background:var(--cbr-primary)"></div><span>Rel. confirmada</span></div>
                 <div class="cbr-legend-item"><div class="cbr-legend-dot" style="background:var(--cbr-hypothesis);border-radius:0"></div><span>Hipótese</span></div>
             </div>

@@ -32,3 +32,11 @@ Menções documentais extraídas pela IA também são omitidas, inclusive quando
 fonte foi representada por outro nó documental. Relações históricas com outros
 documentos (ex.: publicou) continuam visíveis. Todos os nós são preservados,
 inclusive isolados; fonte e evidências continuam disponíveis no detalhe.
+
+## Destaque visual de conectividade
+
+Nós com relações históricas visíveis recebem preenchimento ciano, tamanho e
+halo destacados; isolados ficam cinza. Recalcular ao aplicar filtros, sem
+considerar vínculos documentais, pontas ausentes ou autorrelações. Bordas e
+status de hipótese/confirmação permanecem. Tipos continuam acessíveis nos
+detalhes. Não alterar física, dados, relações ou atribuir sentido à proximidade.

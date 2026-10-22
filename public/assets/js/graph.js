@@ -176,6 +176,29 @@ const CerebroGraph = (() => {
         };
     }
 
+    function highlightConnectivity(nodes, edges) {
+        const visible = new Set(nodes.map(node => String(node.id)));
+        const connected = new Set();
+        edges.forEach(edge => {
+            if (edge._kind === 'documentary') return;
+            const from = String(edge.from), to = String(edge.to);
+            if (from !== to && visible.has(from) && visible.has(to)) {
+                connected.add(from);
+                connected.add(to);
+            }
+        });
+        return nodes.map(node => {
+            const linked = connected.has(String(node.id));
+            return {
+                ...node,
+                color: { ...node.color, background: linked ? '#22d3ee' : '#334155' },
+                font: { ...node.font, color: linked ? '#e2e8f0' : '#94a3b8' },
+                size: node.size + (linked ? 4 : 0),
+                shadow: { ...node.shadow, enabled: linked, color: 'rgba(34,211,238,0.65)', size: 18 },
+            };
+        });
+    }
+
     function init(containerId, data) {
         const container = document.getElementById(containerId);
         if (!container) return;
@@ -185,7 +208,7 @@ const CerebroGraph = (() => {
         allNodes = (data.entities || []).map(buildNodeOptions);
         allEdges = (data.relationships || []).map(buildEdgeOptions);
 
-        const nodesDS = new vis.DataSet(allNodes);
+        const nodesDS = new vis.DataSet(highlightConnectivity(allNodes, allEdges));
         const edgesDS = new vis.DataSet(allEdges);
 
         network = new vis.Network(container, { nodes: nodesDS, edges: edgesDS }, getOptions(theme));
@@ -242,13 +265,13 @@ const CerebroGraph = (() => {
             if (activeFilter === 'hypothesis') return n._status === 'hypothesis';
             return n._type === activeFilter;
         });
-        const visibleIds = new Set(filteredNodes.map(n => n.id));
-        const filteredEdges = allEdges.filter(e => visibleIds.has(e.from) && visibleIds.has(e.to)
+        const visibleIds = new Set(filteredNodes.map(n => String(n.id)));
+        const filteredEdges = allEdges.filter(e => visibleIds.has(String(e.from)) && visibleIds.has(String(e.to))
             && !(activeFilter === 'confirmed' && e._kind === 'documentary'));
 
         nodesDS.clear();
         edgesDS.clear();
-        nodesDS.add(filteredNodes);
+        nodesDS.add(highlightConnectivity(filteredNodes, filteredEdges));
         edgesDS.add(filteredEdges);
         network.setOptions({ physics: { enabled: true } });
         setTimeout(() => network.setOptions({ physics: { enabled: false } }), 2000);

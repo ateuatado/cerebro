@@ -151,6 +151,8 @@
 }
 
 /* Legenda do grafo */
+.cbr-connectivity-key { color: #22d3ee; }
+
 .cbr-graph-legend {
     display: flex;
     gap: 1rem;
