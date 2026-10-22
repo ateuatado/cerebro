@@ -432,6 +432,9 @@ class DocumentReviewController extends BaseController
         }
 
         $message = "Salvas {$createdEntitiesCount} entidades e {$createdRelsCount} relações no Grafo com sucesso!";
+        if ($stats['unresolvedRels'] > 0) {
+            $message .= " {$stats['unresolvedRels']} relações aguardam revisão no detalhe do documento-fonte.";
+        }
         if (!empty($skippedEntities)) {
             $skippedNames = implode(', ', array_map(fn($s) => "'{$s['name']}' ({$s['type']})", $skippedEntities));
             $message .= " Ignoradas por tipo inválido: {$skippedNames}. Corrija o tipo na próxima extração.";

@@ -30,9 +30,11 @@ final class EntityObservationPostgresTest extends TestCase
         require_once APPPATH . 'Database/Migrations/2026-07-27-000001_CreateEntitiesTable.php';
         require_once APPPATH . 'Database/Migrations/2026-07-27-000002_CreateRelationshipsTable.php';
         require_once APPPATH . 'Database/Migrations/2026-10-22-000001_CreateEntityObservations.php';
+        require_once APPPATH . 'Database/Migrations/2026-10-22-000002_CreateUnresolvedRelationships.php';
         (new \App\Database\Migrations\CreateEntitiesTable($forge))->up();
         (new \App\Database\Migrations\CreateRelationshipsTable($forge))->up();
         (new \App\Database\Migrations\CreateEntityObservations($forge))->up();
+        (new \App\Database\Migrations\CreateUnresolvedRelationships($forge))->up();
     }
 
     protected function tearDown(): void
@@ -84,6 +86,17 @@ final class EntityObservationPostgresTest extends TestCase
         $this->assertSame(0, $second['newEntities']);
         $this->assertSame(2, $this->pg->table('relationships')->countAllResults());
         $this->assertSame(4, $this->pg->table('entity_observations')->countAllResults());
+        $links = (new \App\Models\EntityObservationModel())->findGraphLinks();
+        $this->assertCount(4, $links);
+        $this->assertSame('documentary', $links[0]['kind']);
+        $this->assertSame('hypothesis', $links[0]['status']);
+        $bad = [['source_name' => 'Pessoa ausente', 'target_name' => 'Chá do Paraná', 'excerpt' => 'Trecho original']];
+        $pending = $service->persistGraphData((int)$docs[1]['id'], 'Página 2', $entities, $bad, null);
+        $this->assertSame(1, $pending['unresolvedRels']);
+        $this->assertSame(2, $this->pg->table('relationships')->countAllResults());
+        $this->assertSame(1, $this->pg->table('unresolved_relationships')->countAllResults());
+        $service->persistGraphData((int)$docs[1]['id'], 'Página 2', $entities, $bad, null);
+        $this->assertSame(1, $this->pg->table('unresolved_relationships')->countAllResults());
         $repeat = $service->persistGraphData((int)$docs[1]['id'], 'Página 2', $entities, $relations, null);
         $this->assertSame(0, $repeat['newRels']);
         $this->assertSame(4, $this->pg->table('entity_observations')->countAllResults());

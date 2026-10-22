@@ -149,6 +149,7 @@ class BatchIngestController extends BaseController
                     'documentId'        => $documentId,
                     'entitiesExtracted' => $result['entitiesExtracted'] ?? 0,
                     'relsExtracted'     => $result['relsExtracted'] ?? 0,
+                    'unresolvedRels'    => $result['unresolvedRels'] ?? 0,
                     'hypothesesCount'   => $result['relsExtracted'] ?? 0,
                     'status'            => 'completed',
                 ]);

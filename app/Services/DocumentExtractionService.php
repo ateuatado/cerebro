@@ -167,6 +167,7 @@ class DocumentExtractionService
                 'documentId'        => $documentId,
                 'entitiesExtracted' => $stats['newEntities'],
                 'relsExtracted'     => $stats['newRels'],
+                'unresolvedRels'    => $stats['unresolvedRels'],
                 'totalEntitiesMap'  => count($stats['nameToIdMap']),
             ];
 
@@ -226,6 +227,7 @@ class DocumentExtractionService
 
             // B) Cadastrar Relações no Grafo
             $newRelsCount = 0;
+            $unresolvedCount = 0;
             foreach ($relationships as $rel) {
                 $sName = $this->identityService->normalize((string) ($rel['source_name'] ?? ''));
                 $tName = $this->identityService->normalize((string) ($rel['target_name'] ?? ''));
@@ -234,14 +236,15 @@ class DocumentExtractionService
                 $conf  = floatval($rel['confidence'] ?? 0.85);
                 $excr  = mb_substr(trim($rel['excerpt'] ?? ''), 0, 250);
 
-                if (!isset($nameToIdMap[$sName]) || !isset($nameToIdMap[$tName])) {
+                $reason = UnresolvedRelationshipService::reason($rel, $nameToIdMap);
+                if ($reason !== null) {
+                    (new UnresolvedRelationshipService())->record($docId, $rel, $reason);
+                    $unresolvedCount++;
                     continue;
                 }
 
                 $sourceId = $nameToIdMap[$sName];
                 $targetId = $nameToIdMap[$tName];
-
-                if ($sourceId === $targetId) continue;
 
                 $sourceRefObj = [
                     'fonte'  => $docTitle,
@@ -285,6 +288,7 @@ class DocumentExtractionService
             return [
                 'newEntities'  => $newEntitiesCount,
                 'newRels'      => $newRelsCount,
+                'unresolvedRels' => $unresolvedCount,
                 'nameToIdMap'  => $nameToIdMap,
             ];
         } catch (\Throwable $e) {

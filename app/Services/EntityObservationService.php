@@ -26,6 +26,7 @@ class EntityObservationService
                 [$sourceId, $targetId, $sourceId, $targetId, $sourceId, $sourceId]);
             $db->table('entity_observations')->where('entity_id', $sourceId)
                 ->orWhere('source_document_id', $sourceId)->delete();
+            (new UnresolvedRelationshipService())->transferSource($sourceId, $targetId);
             if (!$db->transStatus()) throw new RuntimeException('Não foi possível transferir as evidências.');
             $db->transCommit();
         } catch (\Throwable $e) {

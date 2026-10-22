@@ -209,7 +209,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     totalRels += item.rels;
                     totalHypotheses += item.hypotheses;
 
-                    const msg = `✓ Extraídas ${item.entities} entidades e ${item.rels} relações (${item.hypotheses} hipóteses)`;
+                    const unresolved = Number(data.unresolvedRels) || 0;
+                    const warning = unresolved > 0 ? ` — ${unresolved} relações aguardam revisão no documento-fonte` : '';
+                    const msg = `✓ Extraídas ${item.entities} entidades e ${item.rels} relações (${item.hypotheses} hipóteses)${warning}`;
                     updateItemStatus(item.id, 'done', msg, '<span class="badge-confirmed"><i class="bi bi-check-lg me-1"></i>Concluído</span>');
                 } else {
                     item.status = 'error';

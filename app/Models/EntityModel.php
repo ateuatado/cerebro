@@ -77,17 +77,23 @@ class EntityModel extends Model
     public function findByResearch(int $researchId): array
     {
         $sql = "
-            SELECT DISTINCT e.id, e.type, e.name, e.status
+            SELECT e.id, e.type, e.name, e.status
             FROM entities e
-            LEFT JOIN research_documents rd ON rd.document_id = e.id AND e.type = 'document'
-            LEFT JOIN relationships r ON (r.source_entity_id = e.id OR r.target_entity_id = e.id)
-            LEFT JOIN research_documents rd_rel ON rd_rel.document_id = r.source_document_id
-            LEFT JOIN entity_observations o ON o.entity_id = e.id OR o.source_document_id = e.id
-            LEFT JOIN research_documents rd_obs ON rd_obs.document_id = o.source_document_id
-            WHERE rd.research_id = ? OR rd_rel.research_id = ? OR rd_obs.research_id = ?
+            WHERE e.id IN (
+                SELECT document_id FROM research_documents WHERE research_id = ?
+                UNION
+                SELECT r.source_entity_id FROM relationships r
+                JOIN research_documents rd ON rd.document_id = r.source_document_id WHERE rd.research_id = ?
+                UNION
+                SELECT r.target_entity_id FROM relationships r
+                JOIN research_documents rd ON rd.document_id = r.source_document_id WHERE rd.research_id = ?
+                UNION
+                SELECT o.entity_id FROM entity_observations o
+                JOIN research_documents rd ON rd.document_id = o.source_document_id WHERE rd.research_id = ?
+            )
             ORDER BY e.name ASC
         ";
 
-        return $this->db->query($sql, [$researchId, $researchId, $researchId])->getResultArray();
+        return $this->db->query($sql, [$researchId, $researchId, $researchId, $researchId])->getResultArray();
     }
 }

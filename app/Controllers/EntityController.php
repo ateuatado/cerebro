@@ -161,6 +161,10 @@ class EntityController extends BaseController
             ->join('entities d', 'd.id = o.source_document_id')
             ->where('o.entity_id', $id)->orderBy('o.id', 'ASC')->get()->getResultArray();
         $sourceDocuments = [];
+        $unresolvedRelationships = $entity['type'] === 'document'
+            ? \Config\Database::connect()->table('unresolved_relationships')
+                ->where('source_document_id', $id)->orderBy('id', 'ASC')->get()->getResultArray()
+            : [];
         $docIds = [];
 
         foreach ($observations as $observation) {
@@ -216,6 +220,7 @@ class EntityController extends BaseController
         return view('entities/show', [
             'entity'            => $entity,
             'observations'      => $observations,
+            'unresolvedRelationships' => $unresolvedRelationships,
             'creatorUser'       => $creatorUser,
             'validatorUser'     => $validatorUser,
             'sourceDocuments'   => $sourceDocuments,

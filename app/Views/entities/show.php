@@ -397,6 +397,8 @@ ob_start();
 
     </div><!-- /.cbr-detail-grid -->
 
+    <?= view('entities/unresolved_relationships', ['unresolvedRelationships' => $unresolvedRelationships ?? []]) ?>
+
     <?= view('entities/observations', [
         'entity' => $entity,
         'observations' => $observations ?? [],
