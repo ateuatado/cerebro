@@ -156,8 +156,17 @@ class EntityController extends BaseController
 
         // 2. Coletar documentos fontes e trechos de citação vinculados às relações da entidade
         $allRelations = array_merge($relationsAsSource, $relationsAsTarget);
+        $observations = \Config\Database::connect()->table('entity_observations o')
+            ->select('o.*, d.name AS document_name')
+            ->join('entities d', 'd.id = o.source_document_id')
+            ->where('o.entity_id', $id)->orderBy('o.id', 'ASC')->get()->getResultArray();
         $sourceDocuments = [];
         $docIds = [];
+
+        foreach ($observations as $observation) {
+            $sourceId = (int) $observation['source_document_id'];
+            $docIds[$sourceId] = ['doc_id' => $sourceId, 'excerpts' => []];
+        }
 
         foreach ($allRelations as $rel) {
             $docId = (int)($rel['source_document_id'] ?? 0);
@@ -206,6 +215,7 @@ class EntityController extends BaseController
 
         return view('entities/show', [
             'entity'            => $entity,
+            'observations'      => $observations,
             'creatorUser'       => $creatorUser,
             'validatorUser'     => $validatorUser,
             'sourceDocuments'   => $sourceDocuments,
@@ -678,6 +688,7 @@ class EntityController extends BaseController
         ]);
 
         // 5. Apagar entidade origem
+        (new \App\Services\EntityObservationService())->transfer($sourceId, $targetId);
         $this->entityModel->delete($sourceId);
 
         session()->setFlashdata('success',

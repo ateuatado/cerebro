@@ -397,6 +397,13 @@ ob_start();
 
     </div><!-- /.cbr-detail-grid -->
 
+    <?= view('entities/observations', [
+        'entity' => $entity,
+        'observations' => $observations ?? [],
+        'typeConfig' => $typeConfig,
+        'attrLabels' => $attrLabels,
+    ]) ?>
+
     <!-- ─── Fonte Primária & Trecho de Origem (se extraído de documentos fontes) ─── -->
     <?php if (!empty($sourceDocuments)): ?>
     <div class="cbr-detail-section mt-3">
