@@ -141,6 +141,11 @@ $pendingCount = 0; // TODO: injetar via controller
                 Caderno de pesquisa
             </a>
 
+            <a href="<?= base_url('produtos') ?>" class="cbr-nav-link" id="nav-products">
+                <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                Produção intelectual
+            </a>
+
             <div class="cbr-nav-section">Grafo</div>
 
             <a href="<?= base_url('grafo') ?>"

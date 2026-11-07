@@ -139,3 +139,10 @@ $routes->group('caderno/fichamentos', ['filter' => 'auth'], static function ($ro
     $routes->get('(:num)/editar', 'DocumentNoteController::form/$1');
     $routes->post('(:num)/editar', 'DocumentNoteController::save/$1');
 });
+
+$routes->group('produtos', ['filter' => 'auth'], static function ($routes) {
+    $routes->get('/', 'IntellectualProductController::index');
+    $routes->get('novo', 'IntellectualProductController::form');
+    $routes->post('novo', 'IntellectualProductController::save');
+    $routes->get('(:num)', 'IntellectualProductController::show/$1');
+});
