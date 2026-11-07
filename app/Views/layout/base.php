@@ -136,6 +136,11 @@ $pendingCount = 0; // TODO: injetar via controller
                 Biblioteca
             </a>
 
+            <a href="<?= base_url('caderno/diario') ?>" class="cbr-nav-link" id="nav-research-notebook">
+                <i class="bi bi-journal-text" aria-hidden="true"></i>
+                Caderno de pesquisa
+            </a>
+
             <div class="cbr-nav-section">Grafo</div>
 
             <a href="<?= base_url('grafo') ?>"

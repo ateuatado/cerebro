@@ -121,3 +121,11 @@ $routes->group('biblioteca', ['filter' => 'auth'], static function ($routes) {
     $routes->post('(:num)/notas/(:num)/excluir', 'BibliographicNoteController::delete/$1/$2');
     $routes->post('(:num)/excluir', 'LibraryController::delete/$1');
 });
+
+$routes->group('caderno/diario', ['filter' => 'auth'], static function ($routes) {
+    $routes->get('/', 'ResearchDiaryController::index');
+    $routes->get('novo', 'ResearchDiaryController::form');
+    $routes->post('novo', 'ResearchDiaryController::save');
+    $routes->get('(:num)/editar', 'ResearchDiaryController::form/$1');
+    $routes->post('(:num)/editar', 'ResearchDiaryController::save/$1');
+});
