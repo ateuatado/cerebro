@@ -16,4 +16,24 @@
     <textarea class="form-control mb-3" id="observations" name="observations" rows="5" maxlength="20000"><?= esc(old('observations', $note['observations'] ?? '', false)) ?></textarea>
     <button class="btn btn-primary">Salvar nota</button>
 </form>
+<?php if (isset($note['id'])): ?>
+    <button type="button" class="btn btn-outline-danger mt-3" data-bs-toggle="modal" data-bs-target="#delete-note">Excluir nota</button>
+    <div class="modal fade" id="delete-note" tabindex="-1" aria-labelledby="delete-note-title" aria-hidden="true">
+        <div class="modal-dialog">
+            <form class="modal-content" method="post" action="<?= base_url('biblioteca/' . $work['id'] . '/notas/' . $note['id'] . '/excluir') ?>">
+                <?= csrf_field() ?>
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="delete-note-title">Excluir nota bibliográfica?</h2>
+                </div>
+                <div class="modal-body">
+                    <p>Esta nota de <strong><?= esc($work['title']) ?></strong><?php if ($note['locator'] !== ''): ?> (<?= esc($note['locator']) ?>)<?php endif ?> será excluída permanentemente.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger">Excluir nota</button>
+                </div>
+            </form>
+        </div>
+    </div>
+<?php endif ?>
 <?= view('layout/base', ['title' => 'Nota bibliográfica', 'content' => ob_get_clean()]) ?>

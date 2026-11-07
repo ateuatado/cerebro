@@ -118,5 +118,6 @@ $routes->group('biblioteca', ['filter' => 'auth'], static function ($routes) {
     $routes->post('(:num)/notas/nova', 'BibliographicNoteController::save/$1');
     $routes->get('(:num)/notas/(:num)/editar', 'BibliographicNoteController::form/$1/$2');
     $routes->post('(:num)/notas/(:num)', 'BibliographicNoteController::save/$1/$2');
+    $routes->post('(:num)/notas/(:num)/excluir', 'BibliographicNoteController::delete/$1/$2');
     $routes->post('(:num)/excluir', 'LibraryController::delete/$1');
 });

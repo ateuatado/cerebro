@@ -50,6 +50,15 @@ class BibliographicNoteController extends BaseController
             ->with($saved ? 'success' : 'error', $saved ? 'Nota salva.' : 'Não foi possível salvar a nota.');
     }
 
+    public function delete(int $workId, int $noteId)
+    {
+        $this->context($workId, $noteId);
+        $deleted = (new BibliographicNoteModel())->where('work_id', $workId)->delete($noteId);
+
+        return redirect()->to(base_url("biblioteca/$workId#notas"))
+            ->with($deleted ? 'success' : 'error', $deleted ? 'Nota excluída.' : 'Não foi possível excluir a nota.');
+    }
+
     private function context(int $workId, ?int $noteId): array
     {
         $work = (new BibliographicWorkModel())->find($workId);
