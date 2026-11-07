@@ -61,6 +61,19 @@ class ResearchDiaryController extends BaseController
         return redirect()->to(base_url('caderno/diario'))->with('success', 'Registro salvo.');
     }
 
+    public function delete(int $id)
+    {
+        $model = new ResearchDiaryModel();
+        $this->entry($model, $id);
+        if (!$model->delete($id)) {
+            return redirect()->to(base_url("caderno/diario/$id/editar"))
+                ->with('error', 'Não foi possível excluir o registro.');
+        }
+
+        return redirect()->to(base_url('caderno/diario'))->with('success', 'Registro excluído.');
+    }
+
+
     private function entry(ResearchDiaryModel $model, int $id): array
     {
         $entry = $model->find($id);

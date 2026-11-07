@@ -128,4 +128,5 @@ $routes->group('caderno/diario', ['filter' => 'auth'], static function ($routes)
     $routes->post('novo', 'ResearchDiaryController::save');
     $routes->get('(:num)/editar', 'ResearchDiaryController::form/$1');
     $routes->post('(:num)/editar', 'ResearchDiaryController::save/$1');
+    $routes->post('(:num)/excluir', 'ResearchDiaryController::delete/$1');
 });
