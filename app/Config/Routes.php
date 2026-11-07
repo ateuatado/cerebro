@@ -106,3 +106,12 @@ $routes->post('api/limpar-banco-total',                    'EntityController::cl
 
 // ─── Mesclagem de Entidades Duplicadas ───────────────────────────────
 $routes->post('entidades/merge',                           'EntityController::merge', ['filter' => 'auth']);
+
+$routes->group('biblioteca', ['filter' => 'auth'], static function ($routes) {
+    $routes->get('/', 'LibraryController::index');
+    $routes->get('nova', 'LibraryController::form');
+    $routes->post('nova', 'LibraryController::save');
+    $routes->get('(:num)', 'LibraryController::show/$1');
+    $routes->get('(:num)/editar', 'LibraryController::form/$1');
+    $routes->post('(:num)/editar', 'LibraryController::save/$1');
+});

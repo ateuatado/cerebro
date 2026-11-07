@@ -129,6 +129,13 @@ $pendingCount = 0; // TODO: injetar via controller
                 Upload em Lote (IA)
             </a>
 
+            <div class="cbr-nav-section">Leitura e escrita</div>
+
+            <a href="<?= base_url('biblioteca') ?>" class="cbr-nav-link" id="nav-library">
+                <i class="bi bi-book" aria-hidden="true"></i>
+                Biblioteca
+            </a>
+
             <div class="cbr-nav-section">Grafo</div>
 
             <a href="<?= base_url('grafo') ?>"
