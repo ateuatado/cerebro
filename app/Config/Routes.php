@@ -130,3 +130,11 @@ $routes->group('caderno/diario', ['filter' => 'auth'], static function ($routes)
     $routes->post('(:num)/editar', 'ResearchDiaryController::save/$1');
     $routes->post('(:num)/excluir', 'ResearchDiaryController::delete/$1');
 });
+
+$routes->group('caderno/fichamentos', ['filter' => 'auth'], static function ($routes) {
+    $routes->get('/', 'DocumentNoteController::index');
+    $routes->get('novo', 'DocumentNoteController::form');
+    $routes->post('novo', 'DocumentNoteController::save');
+    $routes->get('(:num)/editar', 'DocumentNoteController::form/$1');
+    $routes->post('(:num)/editar', 'DocumentNoteController::save/$1');
+});

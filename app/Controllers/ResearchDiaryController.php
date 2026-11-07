@@ -2,6 +2,8 @@
 
 namespace App\Controllers;
 
+use App\Models\DocumentNoteModel;
+use App\Models\EntityModel;
 use App\Models\ResearchDiaryModel;
 use CodeIgniter\Exceptions\PageNotFoundException;
 
@@ -29,7 +31,11 @@ class ResearchDiaryController extends BaseController
     {
         $entry = $id === null ? [] : $this->entry(new ResearchDiaryModel(), $id);
 
-        return view('diary/form', compact('entry'));
+        $model = new DocumentNoteModel();
+        $documents = $model->documents();
+        $notes = $model->select('id, document_label, locator')->orderBy('id', 'DESC')->findAll();
+
+        return view('diary/form', compact('entry', 'documents', 'notes'));
     }
 
     public function save(?int $id = null)
@@ -48,11 +54,26 @@ class ResearchDiaryController extends BaseController
         if ($account === '' || mb_strlen($account) > 20000) {
             $errors[] = 'Escreva um relato de até 20 mil caracteres.';
         }
+        $documentId = $this->request->getPost('document_id') ?? '';
+        $noteId = $this->request->getPost('document_note_id') ?? '';
+        if ($documentId !== '' && (!is_string($documentId) || !ctype_digit($documentId)
+            || (new EntityModel())->where('type', 'document')->find($documentId) === null)) {
+            $errors[] = 'Selecione um documento válido.';
+        }
+        if ($noteId !== '' && (!is_string($noteId) || !ctype_digit($noteId)
+            || (new DocumentNoteModel())->find($noteId) === null)) {
+            $errors[] = 'Selecione uma ficha válida.';
+        }
         $form = $id === null ? 'caderno/diario/novo' : "caderno/diario/$id/editar";
         if ($errors !== []) {
             return redirect()->to(base_url($form))->withInput()->with('errors', $errors);
         }
-        $data = ['activity_date' => $date, 'account' => $account];
+        $data = [
+            'activity_date' => $date,
+            'account' => $account,
+            'document_id' => $documentId === '' ? null : $documentId,
+            'document_note_id' => $noteId === '' ? null : $noteId,
+        ];
         $saved = $id === null ? $model->insert($data) !== false : $model->update($id, $data);
         if (!$saved) {
             return redirect()->to(base_url($form))->withInput()->with('errors', ['Não foi possível salvar o registro.']);

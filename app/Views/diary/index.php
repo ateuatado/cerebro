@@ -1,5 +1,6 @@
 <?php ob_start(); ?>
 <h1>Caderno de pesquisa</h1>
+<?= view('diary/_nav', ['tab' => 'diary']) ?>
 <h2>Diário</h2>
 <p>Registre visitas, leituras, buscas e decisões da pesquisa.</p>
 <a class="btn btn-primary mb-3" href="<?= base_url('caderno/diario/novo') ?>">Registrar atividade</a>
@@ -27,6 +28,12 @@
         <h3 class="h5"><time datetime="<?= esc($entry['activity_date']) ?>"><?= esc(implode('/', array_reverse(explode('-', $entry['activity_date'])))) ?></time></h3>
         <p><?= nl2br(esc($entry['account'])) ?></p>
         <a href="<?= base_url('caderno/diario/' . $entry['id'] . '/editar') ?>">Editar registro</a>
+        <?php if ($entry['document_id'] !== null): ?>
+            · <a href="<?= base_url('documentos/' . $entry['document_id'] . '/revisar') ?>">Documento vinculado</a>
+        <?php endif ?>
+        <?php if ($entry['document_note_id'] !== null): ?>
+            · <a href="<?= base_url('caderno/fichamentos/' . $entry['document_note_id'] . '/editar') ?>">Ficha vinculada</a>
+        <?php endif ?>
     </article>
 <?php endforeach ?>
 <?php if ($pager->getPageCount() > 1): ?>

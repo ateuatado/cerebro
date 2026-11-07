@@ -10,6 +10,20 @@
     <input type="date" class="form-control mb-3" id="activity_date" name="activity_date" required value="<?= esc(old('activity_date', $entry['activity_date'] ?? date('Y-m-d'), false)) ?>">
     <label class="form-label" for="account">Relato</label>
     <textarea class="form-control mb-3" id="account" name="account" rows="8" required maxlength="20000"><?= esc(old('account', $entry['account'] ?? '', false)) ?></textarea>
+    <label class="form-label" for="diary-document">Documento do acervo (opcional)</label>
+    <select class="form-select mb-3" name="document_id" id="diary-document">
+        <option value="">Nenhum</option>
+        <?php foreach ($documents as $document): ?>
+            <option value="<?= esc($document['id']) ?>" <?= old('document_id', (string) ($entry['document_id'] ?? ''), false) === (string) $document['id'] ? 'selected' : '' ?>><?= esc($document['name']) ?> (#<?= esc($document['id']) ?>)</option>
+        <?php endforeach ?>
+    </select>
+    <label class="form-label" for="diary-note">Ficha documental (opcional)</label>
+    <select class="form-select mb-3" name="document_note_id" id="diary-note">
+        <option value="">Nenhuma</option>
+        <?php foreach ($notes as $note): ?>
+            <option value="<?= esc($note['id']) ?>" <?= old('document_note_id', (string) ($entry['document_note_id'] ?? ''), false) === (string) $note['id'] ? 'selected' : '' ?>><?= esc($note['document_label']) ?><?= $note['locator'] !== '' ? ' · ' . esc($note['locator']) : '' ?> (#<?= esc($note['id']) ?>)</option>
+        <?php endforeach ?>
+    </select>
     <button class="btn btn-primary">Salvar registro</button>
     <a class="btn btn-secondary" href="<?= base_url('caderno/diario') ?>">Cancelar</a>
 </form>

@@ -7,5 +7,5 @@ use CodeIgniter\Model;
 class ResearchDiaryModel extends Model
 {
     protected $table = 'research_diary';
-    protected $allowedFields = ['activity_date', 'account'];
+    protected $allowedFields = ['activity_date', 'account', 'document_id', 'document_note_id'];
 }
