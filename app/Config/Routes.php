@@ -145,4 +145,10 @@ $routes->group('produtos', ['filter' => 'auth'], static function ($routes) {
     $routes->get('novo', 'IntellectualProductController::form');
     $routes->post('novo', 'IntellectualProductController::save');
     $routes->get('(:num)', 'IntellectualProductController::show/$1');
+    $routes->get('(:num)/partes/nova', 'ProductPartController::form/$1');
+    $routes->post('(:num)/partes/nova', 'ProductPartController::save/$1');
+    $routes->get('(:num)/partes/(:num)/editar', 'ProductPartController::form/$1/$2');
+    $routes->post('(:num)/partes/(:num)/editar', 'ProductPartController::save/$1/$2');
+    $routes->post('(:num)/partes/(:num)/mover', 'ProductPartController::move/$1/$2');
+    $routes->post('(:num)/partes/(:num)/excluir', 'ProductPartController::delete/$1/$2');
 });
