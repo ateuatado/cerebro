@@ -36,6 +36,7 @@
         <?php endforeach ?>
     </dl>
     <a class="btn btn-secondary" href="<?= base_url('biblioteca/' . $work['id'] . '/editar') ?>">Editar obra</a>
+<?php if ($notes === []): ?>
     <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#delete-work">Excluir obra</button>
     <div class="modal fade" id="delete-work" tabindex="-1" aria-labelledby="delete-work-title" aria-hidden="true">
         <div class="modal-dialog">
@@ -54,5 +55,29 @@
             </form>
         </div>
     </div>
+<?php endif ?>
+<?php endif ?>
+<?php if (!$editing): ?>
+    <section class="mt-4" id="notas" aria-labelledby="notes-title">
+        <h2 id="notes-title">Notas bibliográficas</h2>
+        <a class="btn btn-primary mb-3" href="<?= base_url('biblioteca/' . $work['id'] . '/notas/nova') ?>">Nova nota bibliográfica</a>
+        <?php if ($notes === []): ?>
+            <p>Esta obra ainda não tem notas.</p>
+        <?php endif ?>
+        <?php foreach ($notes as $note): ?>
+            <article class="cbr-card mb-3 p-3">
+                <h3 class="h5"><?= esc($note['locator'] !== '' ? $note['locator'] : 'Nota geral') ?></h3>
+                <?php if ($note['excerpt'] !== ''): ?>
+                    <div class="fw-semibold">Excerto</div>
+                    <blockquote><?= nl2br(esc($note['excerpt'])) ?></blockquote>
+                <?php endif ?>
+                <?php if ($note['observations'] !== ''): ?>
+                    <div class="fw-semibold">Observações</div>
+                    <p><?= nl2br(esc($note['observations'])) ?></p>
+                <?php endif ?>
+                <a href="<?= base_url('biblioteca/' . $work['id'] . '/notas/' . $note['id'] . '/editar') ?>">Editar nota</a>
+            </article>
+        <?php endforeach ?>
+    </section>
 <?php endif ?>
 <?= view('layout/base', ['title' => 'Biblioteca', 'content' => ob_get_clean()]) ?>

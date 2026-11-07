@@ -2,6 +2,7 @@
 
 namespace App\Controllers;
 
+use App\Models\BibliographicNoteModel;
 use App\Models\BibliographicWorkModel;
 use CodeIgniter\Exceptions\PageNotFoundException;
 
@@ -23,7 +24,9 @@ class LibraryController extends BaseController
             throw PageNotFoundException::forPageNotFound();
         }
 
-        return view('library/work', ['work' => $work, 'editing' => false]);
+        $notes = (new BibliographicNoteModel())->where('work_id', $id)->orderBy('id', 'DESC')->findAll();
+
+        return view('library/work', ['work' => $work, 'editing' => false, 'notes' => $notes]);
     }
 
     public function form(?int $id = null): string
@@ -78,6 +81,10 @@ class LibraryController extends BaseController
         $model = new BibliographicWorkModel();
         if ($model->find($id) === null) {
             throw PageNotFoundException::forPageNotFound();
+        }
+
+        if ((new BibliographicNoteModel())->where('work_id', $id)->countAllResults() > 0) {
+            return redirect()->to(base_url('biblioteca/' . $id))->with('error', 'Esta obra tem notas bibliográficas e não pode ser excluída.');
         }
 
         if (!$model->delete($id)) {
