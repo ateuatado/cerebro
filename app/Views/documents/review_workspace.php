@@ -17,7 +17,7 @@ $docName           = $doc['name'] ?? 'Documento sem nome';
 ob_start();
 ?>
 
-<div class="fade-in-up" data-doc-id="<?= $docId ?>" data-total-pages="<?= $totalPages ?>" id="workspace-container">
+<div class="fade-in-up" data-doc-id="<?= $docId ?>" data-total-pages="<?= $totalPages ?>" data-initial-page="<?= $initialPage ?>" id="workspace-container">
 
     <!-- Header -->
     <div class="cbr-page-header mb-3">
@@ -58,12 +58,17 @@ ob_start();
                             <i class="bi bi-chevron-left"></i>
                         </button>
                         <span style="font-size:.875rem;font-weight:600;color:var(--cbr-text)" class="px-2">
-                            Pág. <span id="currentPageNum">1</span> / <?= $totalPages ?>
+                            Pág. <span id="currentPageNum"><?= $initialPage ?></span> / <?= $totalPages ?>
                         </span>
                         <button type="button" class="btn btn-sm btn-outline-secondary" id="btnNextPage" title="Próxima Página">
                             <i class="bi bi-chevron-right"></i>
                         </button>
                     </div>
+
+                    <?php if ($canCreatePageNote): ?>
+                        <a id="createPageNote" class="btn btn-sm btn-outline-primary"
+                           href="<?= base_url("documentos/{$docId}/revisar") . '?fichar=1&amp;pagina=' . $initialPage ?>">Criar ficha desta página</a>
+                    <?php endif ?>
 
                     <!-- Botões de Rotação Visual e Física -->
                     <div class="d-flex align-items-center gap-1">
@@ -101,7 +106,7 @@ ob_start();
                     </div>
 
                     <img id="pageImageViewer" 
-                         src="<?= base_url("api/documentos/{$docId}/pagina/1/imagem") ?>" 
+                         src="<?= base_url("api/documentos/{$docId}/pagina/{$initialPage}/imagem") ?>"
                          alt="Página do documento histórico" 
                          style="max-width: 100%; height: auto; border-radius: var(--cbr-radius-sm); box-shadow: 0 4px 20px rgba(0,0,0,0.5); transition: transform 0.2s ease-in-out; cursor: default;">
 

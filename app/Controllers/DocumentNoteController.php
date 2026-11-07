@@ -33,6 +33,15 @@ class DocumentNoteController extends BaseController
     {
         $model = new DocumentNoteModel();
         $note = $this->findNote($model, $id);
+        if ($id === null) {
+            $documentId = $this->request->getGet('documento');
+            $locator = $this->request->getGet('localizador');
+            if (is_string($documentId) && ctype_digit($documentId)
+                && is_string($locator) && preg_match('/^p\. [1-9][0-9]{0,8}$/D', $locator)
+                && (new EntityModel())->where('type', 'document')->find($documentId) !== null) {
+                $note = ['document_id' => $documentId, 'locator' => $locator];
+            }
+        }
 
         return view('document_notes/form', ['note' => $note, 'documents' => $model->documents()]);
     }

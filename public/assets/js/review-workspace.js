@@ -85,7 +85,8 @@ document.addEventListener("DOMContentLoaded", () => {
 		"btnConfirmRegionEntities",
 	);
 
-	let currentPage = 1;
+	const createPageNote = document.getElementById("createPageNote");
+	let currentPage = Number(container.dataset.initialPage) || 1;
 	let isCropMode = false;
 	let isMouseDown = false;
 	let startX = 0,
@@ -186,6 +187,11 @@ document.addEventListener("DOMContentLoaded", () => {
 		if (pageNum < 1 || pageNum > totalPages) return;
 		currentPage = pageNum;
 		currentPageEl.textContent = currentPage;
+		if (createPageNote) {
+			const noteUrl = new URL(createPageNote.href);
+			noteUrl.searchParams.set("pagina", String(currentPage));
+			createPageNote.href = noteUrl.href;
+		}
 
 		spinner.classList.remove("d-none");
 		resetCrop();

@@ -126,6 +126,26 @@ class DocumentReviewController extends BaseController
             }
         }
 
+        $requestedPage = $this->request->getGet('pagina');
+        $page = is_string($requestedPage) ? filter_var($requestedPage, FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1, 'max_range' => $totalPages],
+        ]) : false;
+        $hasFile = $filePath !== '' && is_file($filePath);
+        if ($this->request->getGet('fichar') === '1') {
+            if ($page === false || !$hasFile) {
+                return redirect()->to(base_url("documentos/$id/revisar"))
+                    ->with('error', 'A página solicitada não está disponível para fichamento.');
+            }
+
+            return redirect()->to(base_url('caderno/fichamentos/novo') . '?' . http_build_query([
+                'documento' => $id, 'localizador' => "p. $page",
+            ]));
+        }
+        if ($requestedPage !== null && ($page === false || !$hasFile)) {
+            return redirect()->to(base_url("documentos/$id/revisar"))
+                ->with('error', 'A página vinculada não está disponível neste documento.');
+        }
+
         $transcriptionText = $attributes['conteudo_transcrito'] ?? $doc['description'] ?? '';
 
         $researchModel = new \App\Models\ResearchProjectModel();
@@ -137,6 +157,8 @@ class DocumentReviewController extends BaseController
             'doc'                 => $doc,
             'attributes'          => $attributes,
             'totalPages'          => $totalPages,
+            'initialPage'         => $page === false ? 1 : $page,
+            'canCreatePageNote'   => $hasFile,
             'transcriptionText'   => $transcriptionText,
             'allResearches'       => $allResearches,
             'attachedResearchIds' => $attachedResearchIds,

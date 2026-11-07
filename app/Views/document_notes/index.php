@@ -37,7 +37,9 @@
         <div>
             <a href="<?= base_url('caderno/fichamentos/' . $note['id'] . '/editar') ?>">Editar ficha</a>
             <?php if ($note['document_id'] !== null): ?>
-                · <a href="<?= base_url('documentos/' . $note['document_id'] . '/revisar') ?>">Abrir documento</a>
+                <?php $pageLink = preg_match('/^p\. ([1-9][0-9]{0,8})$/D', $note['locator'], $pageMatch)
+                    ? '?pagina=' . $pageMatch[1] : ''; ?>
+                · <a href="<?= base_url('documentos/' . $note['document_id'] . '/revisar') . $pageLink ?>"><?= $pageLink !== '' ? 'Voltar à página' : 'Abrir documento' ?></a>
             <?php else: ?>
                 · Documento removido do acervo
             <?php endif ?>
