@@ -133,6 +133,7 @@ $routes->group('caderno/diario', ['filter' => 'auth'], static function ($routes)
 
 $routes->group('caderno/fichamentos', ['filter' => 'auth'], static function ($routes) {
     $routes->get('/', 'DocumentNoteController::index');
+    $routes->get('bibliograficos', 'BibliographicNoteController::index');
     $routes->get('novo', 'DocumentNoteController::form');
     $routes->post('novo', 'DocumentNoteController::save');
     $routes->get('(:num)/editar', 'DocumentNoteController::form/$1');

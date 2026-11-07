@@ -2,6 +2,7 @@
 <?php ob_start(); ?>
 <h1>Caderno de pesquisa</h1>
 <?= view('diary/_nav', ['tab' => 'notes']) ?>
+<?= view('diary/_note_nav', ['collection' => 'documentary']) ?>
 <h2>Fichamentos documentais</h2>
 <p>Registre excertos e observações sobre documentos do acervo.</p>
 <a class="btn btn-primary mb-3" href="<?= base_url('caderno/fichamentos/novo') ?>">Criar ficha</a>

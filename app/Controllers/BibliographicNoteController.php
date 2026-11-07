@@ -8,6 +8,27 @@ use CodeIgniter\Exceptions\PageNotFoundException;
 
 class BibliographicNoteController extends BaseController
 {
+    public function index(): string
+    {
+        $input = $this->request->getGet('q');
+        $query = is_string($input) ? mb_substr(trim($input), 0, 255) : '';
+        $model = new BibliographicNoteModel();
+        $model->select('bibliographic_notes.*, bibliographic_works.title, bibliographic_works.authors')
+            ->join('bibliographic_works', 'bibliographic_works.id = bibliographic_notes.work_id');
+        if ($query !== '') {
+            $model->groupStart()
+                ->like('bibliographic_works.title', $query, 'both', null, true)
+                ->orLike('bibliographic_works.authors', $query, 'both', null, true)
+                ->orLike('bibliographic_notes.locator', $query, 'both', null, true)
+                ->orLike('bibliographic_notes.excerpt', $query, 'both', null, true)
+                ->orLike('bibliographic_notes.observations', $query, 'both', null, true)
+                ->groupEnd();
+        }
+        $notes = $model->orderBy('bibliographic_notes.id', 'DESC')->paginate(20);
+
+        return view('library/notes', compact('notes', 'query') + ['pager' => $model->pager]);
+    }
+
     public function form(int $workId, ?int $noteId = null): string
     {
         [$work, $note] = $this->context($workId, $noteId);
