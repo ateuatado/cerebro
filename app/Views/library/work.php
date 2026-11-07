@@ -36,5 +36,23 @@
         <?php endforeach ?>
     </dl>
     <a class="btn btn-secondary" href="<?= base_url('biblioteca/' . $work['id'] . '/editar') ?>">Editar obra</a>
+    <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#delete-work">Excluir obra</button>
+    <div class="modal fade" id="delete-work" tabindex="-1" aria-labelledby="delete-work-title" aria-hidden="true">
+        <div class="modal-dialog">
+            <form class="modal-content" method="post" action="<?= base_url('biblioteca/' . $work['id'] . '/excluir') ?>">
+                <?= csrf_field() ?>
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="delete-work-title">Excluir obra?</h2>
+                </div>
+                <div class="modal-body">
+                    <p>Você está prestes a excluir <strong><?= esc($work['title']) ?></strong> da Biblioteca. Essa ação não pode ser desfeita.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger">Excluir obra</button>
+                </div>
+            </form>
+        </div>
+    </div>
 <?php endif ?>
 <?= view('layout/base', ['title' => 'Biblioteca', 'content' => ob_get_clean()]) ?>

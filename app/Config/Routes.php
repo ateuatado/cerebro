@@ -114,4 +114,5 @@ $routes->group('biblioteca', ['filter' => 'auth'], static function ($routes) {
     $routes->get('(:num)', 'LibraryController::show/$1');
     $routes->get('(:num)/editar', 'LibraryController::form/$1');
     $routes->post('(:num)/editar', 'LibraryController::save/$1');
+    $routes->post('(:num)/excluir', 'LibraryController::delete/$1');
 });

@@ -72,4 +72,18 @@ class LibraryController extends BaseController
 
         return redirect()->to(base_url('biblioteca/' . $id))->with('success', 'Obra salva.');
     }
+
+    public function delete(int $id)
+    {
+        $model = new BibliographicWorkModel();
+        if ($model->find($id) === null) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        if (!$model->delete($id)) {
+            return redirect()->to(base_url('biblioteca/' . $id))->with('error', 'Não foi possível excluir a obra.');
+        }
+
+        return redirect()->to(base_url('biblioteca'))->with('success', 'Obra excluída.');
+    }
 }
