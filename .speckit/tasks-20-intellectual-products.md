@@ -13,3 +13,5 @@ Um commit por tarefa, com seu ID. Rodar pi-lens antes de fechar cada tarefa.
 A Biblioteca abre diretamente pelo menu, permite cadastrar e consultar uma obra sem criar produto e oferece a tela de detalhe usada pela T19.4.
 
 - [ ] T20.6 — Associar obras por parte, filtrar o combo e indicar o uso na bibliografia geral (US20.4). Depende de T20.3 e T20.4.
+
+- [ ] T20.7 — Vincular fontes e fichas por parte e mostrar a visão geral com retorno ao original (US20.5). Depende de T20.3 e T19.3.

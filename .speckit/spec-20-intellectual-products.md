@@ -25,3 +25,7 @@ A Biblioteca tem entrada própria no menu e mantém o cadastro de obras separado
 ## US20.4 — Obras por parte
 
 No editor de uma parte salva, selecionar obras da bibliografia geral por combo e filtro. Uma obra pode estar em várias partes; não há herança. Retirar da parte mantém os outros vínculos. A visão geral mostra as partes e protege contra retirada de obras em uso. O vínculo não é citação.
+
+## US20.5 — Fontes por parte
+
+No editor, vincular um documento do acervo ou uma ficha documental existente. A aba Fontes do produto mostra a parte de cada vínculo e permite abrir a ficha ou voltar ao original e, quando indicado, à página. Retirar um vínculo não remove a fonte nem a ficha. Vínculos não alteram o grafo.

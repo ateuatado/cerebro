@@ -146,6 +146,9 @@ $routes->group('produtos', ['filter' => 'auth'], static function ($routes) {
     $routes->post('novo', 'IntellectualProductController::save');
     $routes->get('(:num)', 'IntellectualProductController::show/$1');
     $routes->get('(:num)/bibliografia', 'ProductBibliographyController::index/$1');
+    $routes->get('(:num)/fontes', 'ProductSourceController::index/$1');
+    $routes->post('(:num)/partes/(:num)/fontes/adicionar', 'ProductSourceController::attach/$1/$2');
+    $routes->post('(:num)/partes/(:num)/fontes/(:num)/retirar', 'ProductSourceController::detach/$1/$2/$3');
     $routes->post('(:num)/bibliografia/adicionar', 'ProductBibliographyController::attach/$1');
     $routes->post('(:num)/bibliografia/(:num)/retirar', 'ProductBibliographyController::detach/$1/$2');
     $routes->get('(:num)/partes/nova', 'ProductPartController::form/$1');

@@ -14,3 +14,7 @@ Dar à Biblioteca uma entrada própria no menu e uma tela de detalhe por obra, a
 ## Bibliografia por parte
 
 Usar chaves compostas para validar parte e obra no mesmo produto. Excluir parte remove apenas seus vínculos. Usar filtro local no combo e links da bibliografia geral para as partes.
+
+## Fontes por parte
+
+Referenciar IDs do acervo e do fichamento em uma associação exclusiva por parte e alvo. Validar o tipo documental e o pertencimento da parte ao produto. Reusar o localizador da ficha no link de volta à revisão.

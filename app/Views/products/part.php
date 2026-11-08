@@ -48,5 +48,6 @@ $hasChildren = $editing && in_array((string) $part['id'], array_map('strval', ar
 <?php endif ?>
 <?php if ($editing): ?>
     <?= view('products/_part_bibliography', compact('product', 'part', 'selectedWorks', 'availableWorks')) ?>
+    <?= view('products/_part_sources', compact('product', 'part', 'sources', 'availableDocuments', 'availableNotes')) ?>
 <?php endif ?>
 <?= view('layout/base', ['title' => 'Escrita', 'content' => ob_get_clean(), 'pageJs' => ['part-bibliography.js']]) ?>

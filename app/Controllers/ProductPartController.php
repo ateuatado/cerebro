@@ -2,7 +2,9 @@
 
 namespace App\Controllers;
 
+use App\Models\DocumentNoteModel;
 use App\Models\IntellectualProductModel;
+use App\Models\ProductPartSourceModel;
 use App\Models\PartBibliographyModel;
 use App\Models\ProductBibliographyModel;
 use CodeIgniter\Exceptions\PageNotFoundException;
@@ -25,7 +27,21 @@ class ProductPartController extends BaseController
             }
         }
 
-        return view('products/part', compact('product', 'part', 'parts', 'selectedWorks', 'availableWorks'));
+        $sources = $availableDocuments = $availableNotes = [];
+        if ($partId !== null) {
+            $sources = (new ProductPartSourceModel())->sources($productId, $partId);
+            $linkedDocuments = array_fill_keys(array_filter(array_column($sources, 'document_id')), true);
+            $linkedNotes = array_fill_keys(array_filter(array_column($sources, 'note_id')), true);
+            $notes = new DocumentNoteModel();
+            $availableDocuments = array_values(array_filter($notes->documents(),
+                static fn ($document) => !isset($linkedDocuments[$document['id']])));
+            $availableNotes = array_values(array_filter($notes->select('id, document_label, locator')
+                ->where('document_id IS NOT NULL', null, false)->orderBy('document_label')->orderBy('id')->findAll(),
+                static fn ($note) => !isset($linkedNotes[$note['id']])));
+        }
+
+        return view('products/part', compact('product', 'part', 'parts', 'selectedWorks', 'availableWorks',
+            'sources', 'availableDocuments', 'availableNotes'));
     }
 
     public function save(int $productId, ?int $partId = null)
