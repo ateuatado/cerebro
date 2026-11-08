@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Models\BibliographicNoteModel;
 use App\Models\BibliographicWorkModel;
+use App\Models\ProductBibliographyModel;
 use CodeIgniter\Exceptions\PageNotFoundException;
 
 class LibraryController extends BaseController
@@ -85,6 +86,10 @@ class LibraryController extends BaseController
 
         if ((new BibliographicNoteModel())->where('work_id', $id)->countAllResults() > 0) {
             return redirect()->to(base_url('biblioteca/' . $id))->with('error', 'Esta obra tem notas bibliográficas e não pode ser excluída.');
+        }
+
+        if ((new ProductBibliographyModel())->hasWork($id)) {
+            return redirect()->to(base_url('biblioteca/' . $id))->with('error', 'Esta obra faz parte da bibliografia de um produto. Retire o vínculo antes de excluí-la.');
         }
 
         if (!$model->delete($id)) {

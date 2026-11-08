@@ -3,6 +3,7 @@
 <a href="<?= base_url('produtos') ?>">Voltar à Produção intelectual</a>
 <h1><?= esc($product['title']) ?></h1>
 <p><?= esc(IntellectualProductModel::KINDS[$product['kind']]) ?></p>
+<?= view('products/_nav', ['productId' => $product['id'], 'tab' => 'structure']) ?>
 <section class="cbr-card p-3" aria-labelledby="product-outline">
     <h2 id="product-outline">Estrutura</h2>
     <p>Clique no título de uma parte para escrever ou editar seu texto.</p>
