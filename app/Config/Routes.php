@@ -154,4 +154,6 @@ $routes->group('produtos', ['filter' => 'auth'], static function ($routes) {
     $routes->post('(:num)/partes/(:num)/editar', 'ProductPartController::save/$1/$2');
     $routes->post('(:num)/partes/(:num)/mover', 'ProductPartController::move/$1/$2');
     $routes->post('(:num)/partes/(:num)/excluir', 'ProductPartController::delete/$1/$2');
+    $routes->post('(:num)/partes/(:num)/obras/adicionar', 'ProductPartController::attachWork/$1/$2');
+    $routes->post('(:num)/partes/(:num)/obras/(:num)/retirar', 'ProductPartController::detachWork/$1/$2/$3');
 });

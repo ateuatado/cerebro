@@ -10,3 +10,7 @@ A Constituição permanece aplicável. A área usa a conta atual, com autentica�
 ## Navegação da Biblioteca
 
 Dar à Biblioteca uma entrada própria no menu e uma tela de detalhe por obra, acessível sem produto. Integrar a coleção de notas nessa tela quando T19.4 estiver disponível. A aba Bibliografia de um produto seleciona obras desse cadastro.
+
+## Bibliografia por parte
+
+Usar chaves compostas para validar parte e obra no mesmo produto. Excluir parte remove apenas seus vínculos. Usar filtro local no combo e links da bibliografia geral para as partes.

@@ -3,6 +3,8 @@
 namespace App\Controllers;
 
 use App\Models\IntellectualProductModel;
+use App\Models\PartBibliographyModel;
+use App\Models\ProductBibliographyModel;
 use CodeIgniter\Exceptions\PageNotFoundException;
 
 class ProductPartController extends BaseController
@@ -11,7 +13,19 @@ class ProductPartController extends BaseController
     {
         [$product, $part, $parts] = $this->context($productId, $partId);
 
-        return view('products/part', compact('product', 'part', 'parts'));
+        $selectedWorks = $availableWorks = [];
+        if ($partId !== null) {
+            $ids = array_fill_keys((new PartBibliographyModel())->workIds($productId, $partId), true);
+            foreach ((new ProductBibliographyModel())->works($productId) as $work) {
+                if (isset($ids[$work['id']])) {
+                    $selectedWorks[] = $work;
+                } else {
+                    $availableWorks[] = $work;
+                }
+            }
+        }
+
+        return view('products/part', compact('product', 'part', 'parts', 'selectedWorks', 'availableWorks'));
     }
 
     public function save(int $productId, ?int $partId = null)
@@ -57,6 +71,28 @@ class ProductPartController extends BaseController
             ? redirect()->to(base_url("produtos/$productId"))->with('success', 'Parte excluída.')
             : redirect()->to(base_url("produtos/$productId/partes/$partId/editar"))
                 ->with('error', 'Remova as subseções antes de excluir esta parte.');
+    }
+
+    public function attachWork(int $productId, int $partId)
+    {
+        $this->context($productId, $partId);
+        $input = $this->request->getPost('work_id');
+        $workId = is_string($input) ? filter_var($input, FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1, 'max_range' => 2147483647],
+        ]) : false;
+        $saved = $workId !== false && (new PartBibliographyModel())->attach($productId, $partId, $workId);
+
+        return redirect()->to(base_url("produtos/$productId/partes/$partId/editar#obras-desta-parte"))
+            ->with($saved ? 'success' : 'error', $saved ? 'Obra vinculada à parte.' : 'Selecione uma obra da bibliografia deste produto.');
+    }
+
+    public function detachWork(int $productId, int $partId, int $workId)
+    {
+        $this->context($productId, $partId);
+        $saved = (new PartBibliographyModel())->detach($productId, $partId, $workId);
+
+        return redirect()->to(base_url("produtos/$productId/partes/$partId/editar#obras-desta-parte"))
+            ->with($saved ? 'success' : 'error', $saved ? 'Obra retirada desta parte.' : 'Não foi possível retirar a obra.');
     }
 
     private function context(int $productId, ?int $partId): array

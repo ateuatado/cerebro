@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Models\BibliographicWorkModel;
 use App\Models\IntellectualProductModel;
+use App\Models\PartBibliographyModel;
 use App\Models\ProductBibliographyModel;
 use CodeIgniter\Exceptions\PageNotFoundException;
 
@@ -20,7 +21,9 @@ class ProductBibliographyController extends BaseController
         $results = $library->search($query);
         $works = (new ProductBibliographyModel())->works($id);
 
-        return view('products/bibliography', compact('product', 'works', 'query', 'results')
+        $partsByWork = (new PartBibliographyModel())->partsByWork($id);
+
+        return view('products/bibliography', compact('product', 'works', 'query', 'results', 'partsByWork')
             + ['pager' => $library->pager]);
     }
 
@@ -47,6 +50,10 @@ class ProductBibliographyController extends BaseController
     public function detach(int $id, int $workId)
     {
         $this->product($id);
+        if (isset((new PartBibliographyModel())->partsByWork($id)[$workId])) {
+            return redirect()->to(base_url("produtos/$id/bibliografia"))
+                ->with('error', 'Retire a obra das partes vinculadas antes de removê-la da bibliografia geral.');
+        }
         $saved = (new ProductBibliographyModel())->detach($id, $workId);
 
         return redirect()->to(base_url("produtos/$id/bibliografia"))

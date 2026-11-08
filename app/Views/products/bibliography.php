@@ -12,10 +12,17 @@
         <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
             <a href="<?= base_url('biblioteca/' . $work['id']) ?>"><?= esc($work['title']) ?></a>
             <span><?= esc($work['authors'] ?? '') ?></span>
+            <?php if (isset($partsByWork[$work['id']])): ?>
+                <span>Partes:</span>
+                <?php foreach ($partsByWork[$work['id']] as $part): ?>
+                    <a href="<?= base_url('produtos/' . $product['id'] . '/partes/' . $part['id'] . '/editar#obras-desta-parte') ?>"><?= esc($part['title']) ?></a>
+                <?php endforeach ?>
+            <?php else: ?>
             <form method="post" action="<?= base_url($path . '/' . $work['id'] . '/retirar') ?>">
                 <?= csrf_field() ?>
                 <button class="btn btn-sm btn-outline-secondary" aria-label="Retirar <?= esc($work['title']) ?> deste produto">Retirar deste produto</button>
             </form>
+            <?php endif ?>
         </div>
     <?php endforeach ?>
 </section>

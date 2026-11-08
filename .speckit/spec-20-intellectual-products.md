@@ -21,3 +21,7 @@ Aceite de ponta a ponta: criar uma tese e um artigo, adaptar a estrutura de cada
 ## Biblioteca como módulo independente
 
 A Biblioteca tem entrada própria no menu e mantém o cadastro de obras separado do acervo de fontes. Uma biblioteca física pode ser instituição custodiadora ou local de consulta; no acervo, a evidência é identificada pelo item, registro ou passagem consultada. Se uma obra cadastrada na Biblioteca também servir como fonte primária, seu uso como evidência segue o registro e a localização no acervo. Cada obra oferece acesso às suas notas bibliográficas conforme a Spec 19.
+
+## US20.4 — Obras por parte
+
+No editor de uma parte salva, selecionar obras da bibliografia geral por combo e filtro. Uma obra pode estar em várias partes; não há herança. Retirar da parte mantém os outros vínculos. A visão geral mostra as partes e protege contra retirada de obras em uso. O vínculo não é citação.

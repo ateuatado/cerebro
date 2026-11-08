@@ -46,4 +46,7 @@ $hasChildren = $editing && in_array((string) $part['id'], array_map('strval', ar
 <?php elseif ($hasChildren): ?>
     <p class="mt-3">Para excluir esta parte, primeiro remova suas subseções.</p>
 <?php endif ?>
-<?= view('layout/base', ['title' => 'Escrita', 'content' => ob_get_clean()]) ?>
+<?php if ($editing): ?>
+    <?= view('products/_part_bibliography', compact('product', 'part', 'selectedWorks', 'availableWorks')) ?>
+<?php endif ?>
+<?= view('layout/base', ['title' => 'Escrita', 'content' => ob_get_clean(), 'pageJs' => ['part-bibliography.js']]) ?>
