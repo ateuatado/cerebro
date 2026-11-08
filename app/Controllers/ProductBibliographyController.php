@@ -15,17 +15,25 @@ class ProductBibliographyController extends BaseController
         $input = $this->request->getGet('q');
         $query = is_string($input) ? mb_substr(trim($input), 0, 255) : '';
         $library = new BibliographicWorkModel();
-        $results = $query !== '' ? $library->search($query) : [];
+        $library->whereNotIn('id', static fn (\CodeIgniter\Database\BaseBuilder $builder) =>
+            $builder->select('work_id')->from('intellectual_product_works')->where('product_id', $id));
+        $results = $library->search($query);
         $works = (new ProductBibliographyModel())->works($id);
-        $linked = array_fill_keys(array_column($works, 'id'), true);
 
-        return view('products/bibliography', compact('product', 'works', 'query', 'results', 'linked')
+        return view('products/bibliography', compact('product', 'works', 'query', 'results')
             + ['pager' => $library->pager]);
     }
 
-    public function attach(int $id, int $workId)
+    public function attach(int $id)
     {
         $this->product($id);
+        $input = $this->request->getPost('work_id');
+        $workId = is_string($input) ? filter_var($input, FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1, 'max_range' => 2147483647],
+        ]) : false;
+        if ($workId === false) {
+            return redirect()->to(base_url("produtos/$id/bibliografia"))->with('error', 'Selecione uma obra.');
+        }
         if ((new BibliographicWorkModel())->find($workId) === null) {
             throw PageNotFoundException::forPageNotFound();
         }

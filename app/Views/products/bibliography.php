@@ -24,25 +24,30 @@
     <form method="get" action="<?= base_url($path) ?>" class="row g-2 align-items-end mb-3">
         <div class="col-sm">
             <label class="form-label" for="work-query">Título, autoria ou identificador</label>
-            <input id="work-query" class="form-control" name="q" maxlength="255" required value="<?= esc($query) ?>">
+            <input id="work-query" class="form-control" name="q" maxlength="255" value="<?= esc($query) ?>">
         </div>
         <div class="col-sm-auto"><button class="btn btn-primary">Buscar</button></div>
     </form>
-    <?php if ($query !== '' && $results === []): ?><p>Nenhuma obra encontrada.</p><?php endif ?>
-    <?php foreach ($results as $work): ?>
-        <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
-            <a href="<?= base_url('biblioteca/' . $work['id']) ?>"><?= esc($work['title']) ?></a>
-            <span><?= esc($work['authors'] ?? '') ?></span>
-            <?php if (isset($linked[$work['id']])): ?>
-                <span>Já adicionada</span>
-            <?php else: ?>
-                <form method="post" action="<?= base_url($path . '/' . $work['id'] . '/adicionar') ?>">
-                    <?= csrf_field() ?>
-                    <button class="btn btn-sm btn-outline-primary" aria-label="Adicionar <?= esc($work['title']) ?>">Adicionar</button>
-                </form>
-            <?php endif ?>
-        </div>
-    <?php endforeach ?>
+    <?php if ($query !== ''): ?>
+        <p><a href="<?= base_url($path) ?>">Limpar busca</a></p>
+    <?php endif ?>
+    <?php if ($results === []): ?>
+        <p><?= $query === '' ? 'Nenhuma obra disponível para adicionar nesta página.' : 'Nenhuma obra disponível corresponde à busca nesta página.' ?></p>
+    <?php else: ?>
+        <form method="post" action="<?= base_url($path . '/adicionar') ?>" class="row g-2 align-items-end mb-3">
+            <?= csrf_field() ?>
+            <div class="col-sm">
+                <label class="form-label" for="work-select">Obras disponíveis</label>
+                <select class="form-select" name="work_id" id="work-select" required>
+                    <option value="">Selecione uma obra</option>
+                    <?php foreach ($results as $work): ?>
+                        <option value="<?= esc($work['id']) ?>"><?= esc($work['title']) ?><?= empty($work['authors']) ? '' : ' — ' . esc($work['authors']) ?></option>
+                    <?php endforeach ?>
+                </select>
+            </div>
+            <div class="col-sm-auto"><button class="btn btn-outline-primary">Adicionar</button></div>
+        </form>
+    <?php endif ?>
     <?php if ($pager !== null && $pager->getPageCount() > 1): ?><?= $pager->only(['q'])->links() ?><?php endif ?>
     <a href="<?= base_url('biblioteca/nova') ?>">Cadastrar obra na Biblioteca</a>
 </section>
